@@ -15,10 +15,10 @@ test: test.o
 		./test
 
 main.o: main.cpp
-        ${CXX} ${CXXFLAGS} $^ -c
+		${CXX} ${CXXFLAGS} $^ -c
 
 test.o: test.cpp
-        ${CXX} ${CXXFLAGS} $^ -c
+		${CXX} ${CXXFLAGS} $^ -c
 
 clean:
 		rm -f ${targets} *.o *.gch a.out *.exe
