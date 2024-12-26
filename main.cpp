@@ -9,6 +9,11 @@
 #define LED_G 13
 #define LED_R 11
 
+#define PYRO_1 16
+#define PYRO_2 18
+#define PYRO_3 22
+
+
 
 void parseLED(ushort state = 0) {
     switch(state) {
@@ -39,10 +44,14 @@ int main() {
     wiringPiSetupGpio();
 
     // LED Pins
-    pinMode(LED_B, INPUT);
-    pinMode(LED_G, INPUT);
-    pinMode(LED_B, INPUT);
-    
+    pinMode(LED_B, OUTPUT);
+    pinMode(LED_G, OUTPUT);
+    pinMode(LED_B, OUTPUT);
+
+    // PYRO channels
+    pinMode(PYRO_1, OUTPUT);
+    pinMode(PYRO_2, OUTPUT);
+    pinMode(PYRO_3, OUTPUT);
 
     return 0;
 }
