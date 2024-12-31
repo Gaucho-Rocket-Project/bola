@@ -2,15 +2,16 @@ CXX=g++
 CXX_FLAGS=-std=c++17
 
 DEPENDENCIES=wiringPi
+HEADERS=constants.h
 
 targets=main test 
 
 all: main
 
-main: main.o
+main: main.o ${HEADERS}
 		${CXX} ${CXXFLAGS} $^ -o main -l ${DEPENDENCIES}
 
-test: test.o
+test: test.o ${HEADERS}
 		${CXX} ${CXXFLAGS} $^ -o test -l ${DEPENDENCIES}
 		./test
 
