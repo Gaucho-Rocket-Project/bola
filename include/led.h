@@ -1,5 +1,7 @@
+#ifndef LED_H
+#define LED_H
+
 #include <iostream>
-#include <string>
 #include <unistd.h>
 #include <wiringPi.h>
 
@@ -55,21 +57,4 @@ void testLED() {
   parseLED();
 }
 
-int main(int argc, char **argv) {
-
-  wiringPiSetupGpio();
-
-  // LED Pins
-  pinMode(LED_B, OUTPUT);
-  pinMode(LED_G, OUTPUT);
-  pinMode(LED_B, OUTPUT);
-
-  // PYRO channels
-  pinMode(PYRO_1, OUTPUT);
-  pinMode(PYRO_2, OUTPUT);
-  pinMode(PYRO_3, OUTPUT);
-
-  testLED();
-
-  return 0;
-}
+#endif

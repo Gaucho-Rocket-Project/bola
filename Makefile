@@ -1,25 +1,19 @@
-CXX=g++
-CXX_FLAGS=-std=c++17
+CXX        := g++
+CXXFLAGS   := -std=c++17 -Iinclude
+SRC        := src
+BIN        := bin
+DEPENDENCIES := wiringPi
 
-DEPENDENCIES=wiringPi
-HEADERS=constants.h
+SRCS       := $(wildcard $(SRC)/*.cpp)
+BINS       := $(patsubst $(SRC)/%.cpp, $(BIN)/%, $(SRCS))
+HDRS       := $(wildcard include/*.h)
 
-targets=main test 
+.PHONY: all clean
 
-all: main
+all: $(BINS)
 
-main: main.o ${HEADERS}
-		${CXX} ${CXXFLAGS} $^ -o main -l ${DEPENDENCIES}
-
-test: test.o ${HEADERS}
-		${CXX} ${CXXFLAGS} $^ -o test -l ${DEPENDENCIES}
-		./test
-
-main.o: main.cpp
-		${CXX} ${CXXFLAGS} $^ -c
-
-test.o: test.cpp
-		${CXX} ${CXXFLAGS} $^ -c
+$(BIN)/%: $(SRC)/%.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $< -l$(DEPENDENCIES)
 
 clean:
-		rm -f ${targets} *.o *.gch a.out *.exe
+	rm -rf $(BIN)/*
