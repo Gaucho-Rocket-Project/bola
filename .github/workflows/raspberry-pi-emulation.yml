@@ -8,17 +8,23 @@ on:
 
 jobs:
   raspberry-pi-simulation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04 # Use a specific version of Ubuntu for compatibility
     steps:
       # Check out the repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # Enable additional repositories and update package list
+      - name: Enable universe and multiverse repositories
+        run: |
+          sudo add-apt-repository universe
+          sudo add-apt-repository multiverse
+          sudo apt-get update
+
       # Install QEMU
       - name: Install QEMU
         run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu qemu-user-static
+          sudo apt-get install -y qemu-system-arm qemu-user-static
 
       # Download Raspberry Pi OS Image
       - name: Download Raspberry Pi OS
@@ -44,4 +50,3 @@ jobs:
         run: |
           # Add your commands here
           echo "Running tests on simulated Raspberry Pi"
-
