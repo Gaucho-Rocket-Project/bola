@@ -55,7 +55,10 @@ jobs:
           -no-reboot \
           -serial stdio \
           -append "root=/dev/sda2 panic=1" \
-          -hda raspbian.img
+          -drive file=raspbian.img,format=raw \
+          -nographic \
+          -no-audio \
+          -display none
 
 
       # Add Custom Commands
