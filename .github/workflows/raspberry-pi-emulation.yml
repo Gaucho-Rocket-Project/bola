@@ -57,7 +57,8 @@ jobs:
           -append "root=/dev/sda2 panic=1" \
           -drive file=raspbian.img,format=raw \
           -nographic \
-          -audiodev none,id=none
+          -audiodev none,id=none \
+          -monitor null
 
 
       # Add Custom Commands
