@@ -41,11 +41,14 @@ jobs:
         run: |
           xz -d raspbian.img.xz
 
-      # Run QEMU to emulate Raspberry Pi OS
+      - name: Download Kernel for QEMU
+        run: |
+          wget https://github.com/dhruvvyas90/qemu-rpi-kernel/raw/master/kernel-qemu-4.19.50-buster -O kernel-qemu
+
       - name: Run Raspberry Pi Simulation
         run: |
           qemu-system-arm \
-          -kernel /path/to/kernel-qemu \
+          -kernel kernel-qemu \
           -cpu arm1176 \
           -m 256 \
           -M versatilepb \
@@ -54,7 +57,12 @@ jobs:
           -append "root=/dev/sda2 panic=1" \
           -hda raspbian.img
 
+
       # Add Custom Commands
       - name: Run Scripts or Tests
         run: |
           echo "Running tests on simulated Raspberry Pi"
+          cd build
+          cmake ..
+          make
+          ./main
