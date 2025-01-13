@@ -8,13 +8,13 @@ on:
 
 jobs:
   raspberry-pi-simulation:
-    runs-on: ubuntu-22.04 # Use a specific version of Ubuntu for compatibility
+    runs-on: ubuntu-22.04
     steps:
-      # Check out the repository
+      # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Enable additional repositories and update package list
+      # Enable universe and multiverse repositories
       - name: Enable universe and multiverse repositories
         run: |
           sudo add-apt-repository universe
@@ -26,11 +26,20 @@ jobs:
         run: |
           sudo apt-get install -y qemu-system-arm qemu-user-static
 
-      # Download Raspberry Pi OS Image
+      # Download Raspberry Pi OS
       - name: Download Raspberry Pi OS
         run: |
-          wget https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2024-11-19/2024-11-19-raspios-bookworm-armhf-lite.img.xz -O raspbian.zip
-          unzip raspbian.zip -d raspbian
+          wget https://downloads.raspberrypi.org/raspios_lite_armhf_latest -O raspbian.img.xz
+
+      # Verify the File Type
+      - name: Verify File Type
+        run: |
+          file raspbian.img.xz
+
+      # Extract the .xz File
+      - name: Extract Raspberry Pi OS
+        run: |
+          xz -d raspbian.img.xz
 
       # Run QEMU to emulate Raspberry Pi OS
       - name: Run Raspberry Pi Simulation
@@ -43,10 +52,9 @@ jobs:
           -no-reboot \
           -serial stdio \
           -append "root=/dev/sda2 panic=1" \
-          -hda raspbian/your-image.img
+          -hda raspbian.img
 
       # Add Custom Commands
       - name: Run Scripts or Tests
         run: |
-          # Add your commands here
           echo "Running tests on simulated Raspberry Pi"
