@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  build:
+  build-and-run:
     runs-on: ubuntu-latest
     steps:
       # Checkout the code
@@ -27,11 +27,12 @@ jobs:
       # Pull and run the Docker container
       - name: Build and Run in Docker
         run: |
-          docker run --rm --platform linux/arm/v7 -v ${{ github.workspace }}:/project -w /project arm32v7/debian:buster bash -c "
+          docker run --rm --platform linux/arm/v7 -v ${{ github.workspace }}:/project -w /project balenalib/raspberrypi3-debian:buster bash -c "
           apt-get update &&
           apt-get install -y build-essential git cmake &&
           git clone https://github.com/WiringPi/WiringPi.git /tmp/WiringPi &&
           cd /tmp/WiringPi &&
+          sed -i 's/sudo //g' build &&
           ./build &&
           cd /project &&
           mkdir -p build &&
