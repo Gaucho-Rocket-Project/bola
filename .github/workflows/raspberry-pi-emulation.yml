@@ -47,10 +47,11 @@ jobs:
             -m 256 \
             -M versatilepb \
             -drive file=raspbian.img,format=raw \
-            -append "root=/dev/sda2 rw console=ttyAMA0 rootwait init=/bin/sh" \
+            -append "root=/dev/sda2 rw console=ttyAMA0 rootwait init=/bin/sh --login" \
             -nographic \
             -audiodev none,id=none \
             -monitor null
+
 
 
       # Add Custom Commands
