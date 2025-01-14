@@ -27,7 +27,7 @@ jobs:
         run: |
           docker run --rm --platform linux/arm/v7 -v $(pwd):/project -w /project balenalib/raspberrypi3-debian:buster bash -c "
           apt-get update &&
-          apt-get install -y cmake g++ make &&
+          apt-get install -y cmake g++ make build-essential &&
           mkdir -p build &&
           cd build &&
           cmake .. &&
