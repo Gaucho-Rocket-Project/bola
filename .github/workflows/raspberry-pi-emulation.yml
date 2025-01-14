@@ -41,9 +41,6 @@ jobs:
               # Install the WiringPi binary
               dpkg -i wiringpi.deb || apt-get install -f -y &&
               
-              # Confirm installation (optional)
-              gpio -v &&
-              
               cd /project &&
               mkdir -p build &&
               cd build &&
