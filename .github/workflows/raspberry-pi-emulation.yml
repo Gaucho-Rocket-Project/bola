@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
 jobs:
   emulate-pi:
@@ -21,4 +22,4 @@ jobs:
 
       - name: Run Raspberry Pi OS
         run: |
-          docker run --rm -it --platform linux/arm/v7 arm32v7/debian:buster bash -c "echo 'Hello, Raspberry Pi!'"
+          docker run --rm --platform linux/arm/v7 arm32v7/debian:buster bash -c "echo 'Hello, Raspberry Pi!'"
