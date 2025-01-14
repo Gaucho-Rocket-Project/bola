@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build:
+  build-and-run:
     runs-on: ubuntu-latest
 
     steps:
@@ -36,12 +36,16 @@ jobs:
               apt-get install -y build-essential gcc g++ cmake git wget gettext fakeroot &&
               git clone https://github.com/WiringPi/WiringPi.git &&
               cd WiringPi &&
-              ./build debian &&
-              mv debian-template/wiringpi-3.0-1.deb . &&
-              apt install -y ./wiringpi-3.0-1.deb &&
               sed -i 's/sudo //g' build &&  # Remove sudo from build script
               sed -i '/uninstall/d' build &&  # Remove uninstall command
               ./build &&
+              if [ -f debian-template/wiringPi.deb ]; then
+                mv debian-template/wiringPi.deb ./wiringpi-3.0-1.deb;
+              else
+                echo 'Error: wiringPi.deb not found!';
+                exit 1;
+              fi &&
+              apt install -y ./wiringpi-3.0-1.deb &&
               cp -r /tmp/WiringPi /usr/local/include &&
               cd /project &&
               mkdir -p build &&
