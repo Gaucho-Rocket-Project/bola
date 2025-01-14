@@ -36,7 +36,7 @@ jobs:
               apt-get install -y build-essential gcc g++ cmake git wget &&
               
               # Download prebuilt WiringPi binary
-              wget https://project-download-url/wiringpi-2.50-armhf.deb -O wiringpi.deb &&
+              wget https://github.com/WiringPi/WiringPi/releases/download/3.12/wiringpi_3.12_armhf.deb -O wiringpi.deb &&
               
               # Install the WiringPi binary
               dpkg -i wiringpi.deb || apt-get install -f -y &&
