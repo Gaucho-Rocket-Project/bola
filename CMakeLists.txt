@@ -16,12 +16,12 @@ include_directories(${INCLUDE_DIR})
 file(GLOB CPP_SOURCES "${SRC_DIR}/*.cpp")
 file(GLOB C_SOURCES "${SRC_DIR}/*.c")
 
-# Define main and test sources
+# Separate main and test sources
 set(MAIN "${SRC_DIR}/main.cpp")
 set(TEST "${SRC_DIR}/test.cpp")
 
 # Exclude main and test from common sources
-list(REMOVE_ITEM CPP_SOURCES "${MAIN}" "${TEST}")
+list(REMOVE_ITEM CPP_SOURCES ${MAIN} ${TEST})
 
 # Create a library for common utilities
 add_library(utils STATIC ${C_SOURCES} ${CPP_SOURCES})
@@ -34,22 +34,15 @@ target_link_libraries(main utils wiringPi pthread)
 add_executable(test ${TEST})
 target_link_libraries(test utils wiringPi pthread)
 
-# Specify output directories
-set_target_properties(main PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
-)
-set_target_properties(test PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
-)
-
 # Optional: Add custom targets for running executables
 add_custom_target(run_main
-    COMMAND ${PROJECT_SOURCE_DIR}/bin/main
+    COMMAND ./main
     DEPENDS main
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR} # Set to build directory
 )
+
 add_custom_target(run_test
-    COMMAND ${PROJECT_SOURCE_DIR}/bin/test
+    COMMAND ./test
     DEPENDS test
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR} # Set to build directory
 )
