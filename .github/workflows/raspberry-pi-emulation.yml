@@ -22,14 +22,19 @@ jobs:
       - name: Enable ARM Emulation
         uses: docker/setup-qemu-action@v2
 
-      # Step 3: Emulate Raspberry Pi and Run the CMake Project
+      # Step 3: Emulate Raspberry Pi and Build CMake Project
       - name: Emulate Raspberry Pi
         run: |
           docker run --rm --platform linux/arm/v7 -v $(pwd):/project -w /project balenalib/raspberrypi3-debian:buster bash -c "
           apt-get update &&
-          apt-get install -y cmake g++ make build-essential &&
+          apt-get install -y build-essential wget &&
+          apt-get remove -y cmake &&
+          wget -qO- 'https://github.com/Kitware/CMake/releases/download/v3.25.0/cmake-3.25.0-Linux-aarch64.sh' | bash &&
+          ln -sf /usr/local/bin/cmake /usr/bin/cmake &&
+          gcc --version &&
+          g++ --version &&
           mkdir -p build &&
           cd build &&
-          cmake .. &&
+          cmake .. -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ &&
           make &&
-          ./main"
+          ./main
