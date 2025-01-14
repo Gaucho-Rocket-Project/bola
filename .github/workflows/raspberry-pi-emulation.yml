@@ -9,6 +9,7 @@ on:
 jobs:
   raspberry-pi-simulation:
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     steps:
       # Checkout the repository
       - name: Checkout repository
@@ -25,6 +26,10 @@ jobs:
       - name: Install QEMU
         run: |
           sudo apt-get install -y qemu-system-arm qemu-user-static
+          echo "Download Kernel for QEMU"
+          wget https://github.com/dhruvvyas90/qemu-rpi-kernel/raw/master/kernel-qemu-4.19.50-buster -O kernel-qemu
+          echo "Download Device Tree Blob (DTB) File:"
+          wget https://github.com/dhruvvyas90/qemu-rpi-kernel/raw/master/versatile-pb.dtb -O versatile-pb.dtb
 
       # Download Raspberry Pi OS
       - name: Download Raspberry Pi OS
@@ -33,27 +38,19 @@ jobs:
           file raspbian.img.xz
           xz -d raspbian.img.xz
 
-      - name: Download Kernel for QEMU
-        run: |
-          wget https://github.com/dhruvvyas90/qemu-rpi-kernel/raw/master/kernel-qemu-4.19.50-buster -O kernel-qemu
-
-      - name: Download Device Tree Blob (DTB) File
-        run: |
-          wget https://github.com/dhruvvyas90/qemu-rpi-kernel/raw/master/versatile-pb.dtb -O versatile-pb.dtb
-
       - name: Run Raspberry Pi Simulation
         run: |
           qemu-system-arm \
-          -kernel kernel-qemu \
-          -dtb versatile-pb.dtb \
-          -cpu arm1176 \
-          -m 256 \
-          -M versatilepb \
-          -drive file=raspbian.img,format=raw \
-          -append "root=/dev/sda2 rw console=ttyAMA0 rootwait init=/bin/bash" \
-          -nographic \
-          -audiodev none,id=none \
-          -monitor null
+            -kernel kernel-qemu \
+            -dtb versatile-pb.dtb \
+            -cpu arm1176 \
+            -m 256 \
+            -M versatilepb \
+            -drive file=raspbian.img,format=raw \
+            -append "root=/dev/sda2 rw console=ttyAMA0 rootwait init=/bin/sh" \
+            -nographic \
+            -audiodev none,id=none \
+            -monitor null
 
 
       # Add Custom Commands
