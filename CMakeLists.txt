@@ -24,14 +24,14 @@ set(TEST "${SRC_DIR}/test.cpp")
 list(REMOVE_ITEM CPP_SOURCES ${MAIN} ${TEST})
 
 # Create a library for common utilities
-# add_library(utils STATIC ${C_SOURCES})
+add_library(utils STATIC ${C_SOURCES} ${CPP_SOURCES})
 
 # Define the main executable
-add_executable(main ${MAIN} ${CPP_SOURCES})
+add_executable(main ${MAIN})
 target_link_libraries(main utils wiringPi)
 
 # Define the test executable
-add_executable(test ${TEST} ${CPP_SOURCES})
+add_executable(test ${TEST})
 target_link_libraries(test utils wiringPi)
 
 # Specify output directories
