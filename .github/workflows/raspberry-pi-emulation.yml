@@ -36,9 +36,9 @@ jobs:
               apt-get install -y build-essential gcc g++ cmake git wget &&
               git clone https://github.com/WiringPi/WiringPi.git /tmp/WiringPi &&
               cd /tmp/WiringPi &&
-              # Remove sudo references in the build script and add dummy 'uninstall' target
-              sed -i 's/sudo //g' build &&
-              sed -i '/^uninstall:/a \\\techo \"Uninstall placeholder\"' Makefile &&
+              cd /tmp/WiringPi &&
+              sed -i 's/sudo //g' build &&  # Remove sudo from build script
+              sed -i '/uninstall/d' build &&  # Remove uninstall command
               ./build &&
               cp -r /tmp/WiringPi /usr/local/include &&
               cd /project &&
