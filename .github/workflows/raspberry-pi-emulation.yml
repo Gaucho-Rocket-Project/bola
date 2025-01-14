@@ -1,64 +1,24 @@
-name: Simulate Raspberry Pi
+name: Raspberry Pi Emulation
 
 on:
   push:
     branches:
       - main
-  pull_request:
 
 jobs:
-  raspberry-pi-simulation:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 10
+  emulate-pi:
+    runs-on: ubuntu-latest
+
     steps:
-      # Checkout the repository
-      - name: Checkout repository
+      - name: Check out code
         uses: actions/checkout@v3
 
-      # Enable universe and multiverse repositories
-      - name: Enable universe and multiverse repositories
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
+
+      - name: Enable ARM Emulation
+        uses: docker/setup-qemu-action@v2
+
+      - name: Run Raspberry Pi OS
         run: |
-          sudo add-apt-repository universe
-          sudo add-apt-repository multiverse
-          sudo apt-get update
-
-      # Install QEMU
-      - name: Install QEMU
-        run: |
-          sudo apt-get install -y qemu-system-arm qemu-user-static
-          echo "Download Kernel for QEMU"
-          wget https://github.com/dhruvvyas90/qemu-rpi-kernel/raw/master/kernel-qemu-4.19.50-buster -O kernel-qemu
-          echo "Download Device Tree Blob (DTB) File:"
-          wget https://github.com/dhruvvyas90/qemu-rpi-kernel/raw/master/versatile-pb.dtb -O versatile-pb.dtb
-
-      # Download Raspberry Pi OS
-      - name: Download Raspberry Pi OS
-        run: |
-          wget https://downloads.raspberrypi.org/raspios_lite_armhf_latest -O raspbian.img.xz
-          file raspbian.img.xz
-          xz -d raspbian.img.xz
-
-      - name: Run Raspberry Pi Simulation
-        run: |
-          qemu-system-arm \
-            -kernel kernel-qemu \
-            -dtb versatile-pb.dtb \
-            -cpu arm1176 \
-            -m 256 \
-            -M versatilepb \
-            -drive file=raspbian.img,format=raw \
-            -append "root=/dev/sda2 rw console=ttyAMA0 rootwait init=/bin/sh --login" \
-            -nographic \
-            -audiodev none,id=none \
-            -monitor null
-
-
-
-      # Add Custom Commands
-      - name: Run Scripts or Tests
-        run: |
-          echo "Running tests on simulated Raspberry Pi"
-          cd build
-          cmake ..
-          make
-          ./main
+          docker run --rm -it --platform linux/arm/v7 arm32v7/debian:buster bash -c "echo 'Hello, Raspberry Pi!'"
