@@ -33,16 +33,3 @@ target_link_libraries(main utils wiringPi pthread)
 # Define the test executable
 add_executable(test ${TEST})
 target_link_libraries(test utils wiringPi pthread)
-
-# Optional: Add custom targets for running executables
-add_custom_target(run_main
-    COMMAND ./main
-    DEPENDS main
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR} # Set to build directory
-)
-
-add_custom_target(run_test
-    COMMAND ./test
-    DEPENDS test
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR} # Set to build directory
-)
