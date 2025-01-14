@@ -24,14 +24,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Create Mock CPU Info
-        run: |
-          mkdir -p /tmp/mock_proc
-          echo "Hardware    : BCM2835" > /tmp/mock_proc/cpuinfo
-          echo "Revision    : 9000c1" >> /tmp/mock_proc/cpuinfo
-
       - name: Build and Run Project in Docker
         run: |
+          echo "processor    : 0" > /tmp/mock_cpuinfo
+          echo "model name   : ARMv7 Processor rev 4 (v7l)" >> /tmp/mock_cpuinfo
+          echo "Hardware     : BCM2835" >> /tmp/mock_cpuinfo
+          echo "Revision     : 9000c1" >> /tmp/mock_cpuinfo
+          echo "Serial       : 0000000000000000" >> /tmp/mock_cpuinfo
           docker run --rm --platform linux/arm/v7 \
             -v $(pwd):/project \
             -w /project \
