@@ -1,43 +1,44 @@
-name: Build and Run Project in Docker
+name: Build and Run in Docker
 
 on:
   push:
     branches:
       - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   build-and-run:
     runs-on: ubuntu-latest
+
     steps:
-      # Checkout the code
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Set up QEMU for multi-architecture support
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: arm
-
-      # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # Build and Run in Docker
-      - name: Build and Run in Docker
+      - name: Build and Run Project in Docker
         run: |
-          docker run --rm --platform linux/arm/v7 -v ${{ github.workspace }}:/project -w /project balenalib/raspberrypi3-debian:buster bash -c "
-          apt-get update &&
-          apt-get install -y build-essential git cmake &&
-          git clone https://github.com/WiringPi/WiringPi.git /tmp/WiringPi &&
-          cd /tmp/WiringPi &&
-          sed -i '/uninstall/d' build &&  # Remove uninstall command from build script
-          sed -i 's/sudo //g' build &&    # Remove sudo dependency
-          ./build &&
-          cd /project &&
-          mkdir -p build &&
-          cd build &&
-          cmake .. &&
-          make &&
-          ./main"
+          docker run --rm --platform linux/arm/v7 \
+            -v $(pwd):/project \
+            -w /project \
+            balenalib/rpi-debian:bullseye \
+            bash -c "
+              apt-get update &&
+              apt-get install -y build-essential gcc g++ cmake git wget &&
+              # Install WiringPi
+              git clone https://github.com/WiringPi/WiringPi.git /tmp/WiringPi &&
+              cd /tmp/WiringPi &&
+              sed -i 's/sudo //g' build &&  # Remove sudo from build script
+              sed -i '/uninstall/d' build &&  # Remove uninstall command
+              ./build &&
+              # Set up project build
+              cd /project &&
+              mkdir -p build &&
+              cd build &&
+              cmake .. -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ &&
+              make &&
+              ./main  # Run your compiled executable
+            "
