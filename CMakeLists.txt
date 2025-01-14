@@ -16,32 +16,28 @@ include_directories(${INCLUDE_DIR})
 file(GLOB CPP_SOURCES "${SRC_DIR}/*.cpp")
 file(GLOB C_SOURCES "${SRC_DIR}/*.c")
 
-# Separate main and test sources
+# Define main and test sources
 set(MAIN "${SRC_DIR}/main.cpp")
 set(TEST "${SRC_DIR}/test.cpp")
 
 # Exclude main and test from common sources
-list(REMOVE_ITEM CPP_SOURCES ${MAIN} ${TEST})
+list(REMOVE_ITEM CPP_SOURCES "${MAIN}" "${TEST}")
 
 # Create a library for common utilities
 add_library(utils STATIC ${C_SOURCES} ${CPP_SOURCES})
 
 # Define the main executable
 add_executable(main ${MAIN})
-target_link_libraries(main utils wiringPi)
+target_link_libraries(main utils wiringPi pthread)
 
 # Define the test executable
 add_executable(test ${TEST})
-target_link_libraries(test utils wiringPi)
-
-target_link_libraries(main utils wiringPi pthread)
 target_link_libraries(test utils wiringPi pthread)
 
 # Specify output directories
 set_target_properties(main PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
 )
-
 set_target_properties(test PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin"
 )
@@ -52,7 +48,6 @@ add_custom_target(run_main
     DEPENDS main
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/bin
 )
-
 add_custom_target(run_test
     COMMAND ${PROJECT_SOURCE_DIR}/bin/test
     DEPENDS test
