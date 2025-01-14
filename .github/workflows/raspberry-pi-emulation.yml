@@ -49,13 +49,12 @@ jobs:
         run: |
           qemu-system-arm \
           -kernel kernel-qemu \
+          -dtb versatile-pb.dtb \
           -cpu arm1176 \
           -m 256 \
           -M versatilepb \
-          -no-reboot \
-          -serial stdio \
-          -append "root=/dev/sda2 panic=1" \
           -drive file=raspbian.img,format=raw \
+          -append "root=/dev/sda2 panic=1 rw" \
           -nographic \
           -audiodev none,id=none \
           -monitor null
