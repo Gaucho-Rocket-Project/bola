@@ -26,15 +26,17 @@ jobs:
       - name: Emulate Raspberry Pi
         run: |
           docker run --rm --platform linux/arm/v7 -v $(pwd):/project -w /project balenalib/raspberrypi3-debian:buster bash -c "
-          apt-get update &&
-          apt-get install -y build-essential wget &&
-          apt-get remove -y cmake &&
-          echo 'yes' | wget -qO- 'https://github.com/Kitware/CMake/releases/download/v3.25.0/cmake-3.25.0-Linux-aarch64.sh' | bash &&
-          ln -sf /usr/local/bin/cmake /usr/bin/cmake &&
-          gcc --version &&
-          g++ --version &&
-          mkdir -p build &&
-          cd build &&
-          cmake .. -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ &&
-          make &&
-          ./main"
+            apt-get update &&
+            apt-get install -y build-essential wget &&
+            apt-get remove -y cmake &&
+            wget https://github.com/Kitware/CMake/releases/download/v3.25.0/cmake-3.25.0-Linux-aarch64.sh &&
+            bash cmake-3.25.0-Linux-aarch64.sh --skip-license --prefix=/usr/local &&
+            ln -sf /usr/local/bin/cmake /usr/bin/cmake &&
+            gcc --version &&
+            g++ --version &&
+            mkdir -p build &&
+            cd build &&
+            cmake .. -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ &&
+            make &&
+            ./<your-executable-name>"
+
