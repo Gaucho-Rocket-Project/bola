@@ -10,18 +10,36 @@ jobs:
   raspberry-pi-simulation:
     runs-on: ubuntu-22.04
     steps:
+      # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # Enable universe and multiverse repositories
       - name: Enable universe and multiverse repositories
         run: |
           sudo add-apt-repository universe
           sudo add-apt-repository multiverse
           sudo apt-get update
 
+      # Install QEMU
       - name: Install QEMU
         run: |
           sudo apt-get install -y qemu-system-arm qemu-user-static
+
+      # Download Raspberry Pi OS
+      - name: Download Raspberry Pi OS
+        run: |
+          wget https://downloads.raspberrypi.org/raspios_lite_armhf_latest -O raspbian.img.xz
+
+      # Verify the File Type
+      - name: Verify File Type
+        run: |
+          file raspbian.img.xz
+
+      # Extract the .xz File
+      - name: Extract Raspberry Pi OS
+        run: |
+          xz -d raspbian.img.xz
 
       - name: Download Kernel for QEMU
         run: |
@@ -44,6 +62,7 @@ jobs:
           -nographic \
           -audiodev none,id=none \
           -monitor null
+
 
       # Add Custom Commands
       - name: Run Scripts or Tests
