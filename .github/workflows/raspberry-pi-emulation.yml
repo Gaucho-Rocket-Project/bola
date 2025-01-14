@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build-and-run:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -33,7 +33,7 @@ jobs:
             bash -c "
               set -e
               apt-get update &&
-              apt-get install -y build-essential gcc g++ cmake git wget gettext &&
+              apt-get install -y build-essential gcc g++ cmake git wget gettext fakeroot &&
               git clone https://github.com/WiringPi/WiringPi.git &&
               cd WiringPi &&
               ./build debian &&
