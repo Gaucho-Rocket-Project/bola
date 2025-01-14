@@ -25,8 +25,6 @@ list(REMOVE_ITEM CPP_SOURCES ${MAIN} ${TEST})
 
 # Create a library for common utilities
 add_library(utils STATIC ${C_SOURCES} ${CPP_SOURCES})
-target_link_libraries(main utils wiringPi pthread)
-target_link_libraries(test utils wiringPi pthread)
 
 # Define the main executable
 add_executable(main ${MAIN})
@@ -35,6 +33,9 @@ target_link_libraries(main utils wiringPi)
 # Define the test executable
 add_executable(test ${TEST})
 target_link_libraries(test utils wiringPi)
+
+target_link_libraries(main utils wiringPi pthread)
+target_link_libraries(test utils wiringPi pthread)
 
 # Specify output directories
 set_target_properties(main PROPERTIES
