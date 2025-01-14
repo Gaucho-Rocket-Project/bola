@@ -35,9 +35,9 @@ jobs:
               apt-get install -y build-essential gcc g++ cmake git wget &&
               git clone https://github.com/WiringPi/WiringPi.git /tmp/WiringPi &&
               cd /tmp/WiringPi &&
-              sed -i 's/sudo //g' build &&  # Remove sudo from build script
-              sed -i '/uninstall/d' build &&  # Remove uninstall command
+              sed -i 's/sudo //g' build &&
               ./build &&
+              cp -r /tmp/WiringPi /usr/local/include &&
               cd /project &&
               mkdir -p build &&
               cd build &&
