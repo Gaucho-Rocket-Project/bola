@@ -24,14 +24,16 @@ jobs:
 
       - name: Build and Run Project in Docker
         run: |
-          docker run --rm --platform linux/arm64 -v ${{ github.workspace }}:/project -w /project arm64v8/debian:buster bash -c "
+          docker run --rm --platform linux/arm32v7 -v ${{ github.workspace }}:/project -w /project balenalib/raspberrypi3-debian:buster bash -c "
           apt-get update &&
-          apt-get install -y build-essential wget &&
-          wget https://github.com/Kitware/CMake/releases/download/v3.25.0/cmake-3.25.0-Linux-aarch64.sh &&
-          chmod +x cmake-3.25.0-Linux-aarch64.sh &&
-          ./cmake-3.25.0-Linux-aarch64.sh --prefix=/usr/local --skip-license &&
-          gcc --version &&
-          g++ --version &&
+          apt-get install -y build-essential wget git &&
+          git clone https://github.com/WiringPi/WiringPi.git /tmp/WiringPi &&
+          cd /tmp/WiringPi &&
+          ./build &&
+          cd /project &&
+          wget https://github.com/Kitware/CMake/releases/download/v3.25.0/cmake-3.25.0-Linux-armhf.sh &&
+          chmod +x cmake-3.25.0-Linux-armhf.sh &&
+          ./cmake-3.25.0-Linux-armhf.sh --prefix=/usr/local --skip-license &&
           mkdir -p build &&
           cd build &&
           cmake .. -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ &&
