@@ -30,15 +30,7 @@ jobs:
       - name: Download Raspberry Pi OS
         run: |
           wget https://downloads.raspberrypi.org/raspios_lite_armhf_latest -O raspbian.img.xz
-
-      # Verify the File Type
-      - name: Verify File Type
-        run: |
           file raspbian.img.xz
-
-      # Extract the .xz File
-      - name: Extract Raspberry Pi OS
-        run: |
           xz -d raspbian.img.xz
 
       - name: Download Kernel for QEMU
@@ -58,7 +50,7 @@ jobs:
           -m 256 \
           -M versatilepb \
           -drive file=raspbian.img,format=raw \
-          -append "root=/dev/sda2 panic=1 rw" \
+          -append "root=/dev/sda2 rw console=ttyAMA0 rootwait init=/bin/bash" \
           -nographic \
           -audiodev none,id=none \
           -monitor null
