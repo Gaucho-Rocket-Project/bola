@@ -32,4 +32,4 @@ jobs:
           cd build &&
           cmake .. &&
           make &&
-          ./<your-executable-name>"
+          ./main"
