@@ -34,8 +34,8 @@ jobs:
           docker run --rm --platform linux/arm/v7 \
             -v $(pwd):/project \
             -w /project \
-            balenalib/rpi-debian:bookworm \
             --privileged \
+            balenalib/rpi-debian:bookworm \
             bash -c "
               set -e
               apt-get update &&
