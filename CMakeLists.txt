@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Define directories
 set(INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
 set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
+set(UTIL_DIR "${PROJECT_SOURCE_DIR}/util")
 include_directories(${INCLUDE_DIR})
 
 # Find all source files
