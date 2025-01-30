@@ -29,8 +29,6 @@ add_library(utils STATIC ${C_SOURCES} ${CPP_SOURCES})
 
 # Define the main executable
 add_executable(main ${MAIN})
-target_link_libraries(main utils wiringPi pthread)
 
 # Define the test executable
 add_executable(test ${TEST})
-target_link_libraries(test utils wiringPi pthread)
