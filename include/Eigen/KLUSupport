@@ -10,7 +10,7 @@
 
 #include <Eigen/SparseCore>
 
-#include <Eigen/src/Core/util/DisableStupidWarnings.h>
+#include <Eigen/src/Core/utils/DisableStupidWarnings.h>
 
 extern "C" {
 #include <btf.h>
@@ -36,6 +36,6 @@ extern "C" {
 
 #include "src/KLUSupport/KLUSupport.h"
 
-#include <Eigen/src/Core/util/ReenableStupidWarnings.h>
+#include <Eigen/src/Core/utils/ReenableStupidWarnings.h>
 
 #endif // EIGEN_KLUSUPPORT_MODULE_H

@@ -12,14 +12,14 @@
 #define EIGEN_CORE_H
 
 // first thing Eigen does: stop the compiler from reporting useless warnings.
-#include "src/Core/util/DisableStupidWarnings.h"
+#include "src/Core/utils/DisableStupidWarnings.h"
 
 // then include this file where all our macros are defined. It's really important to do it first because
 // it's where we do all the compiler/OS/arch detections and define most defaults.
-#include "src/Core/util/Macros.h"
+#include "src/Core/utils/Macros.h"
 
 // This detects SSE/AVX/NEON/etc. and configure alignment settings
-#include "src/Core/util/ConfigureVectorization.h"
+#include "src/Core/utils/ConfigureVectorization.h"
 
 // We need cuda_runtime.h/hip_runtime.h to ensure that
 // the EIGEN_USING_STD macro works properly on the device side
@@ -51,7 +51,7 @@
 
 // this include file manages BLAS and MKL related macros
 // and inclusion of their respective header files
-#include "src/Core/util/MKL_support.h"
+#include "src/Core/utils/MKL_support.h"
 
 
 #if defined(EIGEN_HAS_CUDA_FP16) || defined(EIGEN_HAS_HIP_FP16)
@@ -158,14 +158,14 @@ using std::ptrdiff_t;
   * \endcode
   */
 
-#include "src/Core/util/Constants.h"
-#include "src/Core/util/Meta.h"
-#include "src/Core/util/ForwardDeclarations.h"
-#include "src/Core/util/StaticAssert.h"
-#include "src/Core/util/XprHelper.h"
-#include "src/Core/util/Memory.h"
-#include "src/Core/util/IntegralConstant.h"
-#include "src/Core/util/SymbolicIndex.h"
+#include "src/Core/utils/Constants.h"
+#include "src/Core/utils/Meta.h"
+#include "src/Core/utils/ForwardDeclarations.h"
+#include "src/Core/utils/StaticAssert.h"
+#include "src/Core/utils/XprHelper.h"
+#include "src/Core/utils/Memory.h"
+#include "src/Core/utils/IntegralConstant.h"
+#include "src/Core/utils/SymbolicIndex.h"
 
 #include "src/Core/NumTraits.h"
 #include "src/Core/MathFunctions.h"
@@ -262,8 +262,8 @@ using std::ptrdiff_t;
 #include "src/Core/arch/CUDA/Complex.h"
 #endif
 
-#include "src/Core/util/IndexedViewHelper.h"
-#include "src/Core/util/ReshapedHelper.h"
+#include "src/Core/utils/IndexedViewHelper.h"
+#include "src/Core/utils/ReshapedHelper.h"
 #include "src/Core/ArithmeticSequence.h"
 #ifndef EIGEN_NO_IO
   #include "src/Core/IO.h"
@@ -283,7 +283,7 @@ using std::ptrdiff_t;
 #endif
 
 #include "src/Core/ArrayBase.h"
-#include "src/Core/util/BlasUtil.h"
+#include "src/Core/utils/BlasUtil.h"
 #include "src/Core/DenseStorage.h"
 #include "src/Core/NestByValue.h"
 
@@ -379,6 +379,6 @@ using std::ptrdiff_t;
 
 #include "src/Core/GlobalFunctions.h"
 
-#include "src/Core/util/ReenableStupidWarnings.h"
+#include "src/Core/utils/ReenableStupidWarnings.h"
 
 #endif // EIGEN_CORE_H

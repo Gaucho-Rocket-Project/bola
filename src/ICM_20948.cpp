@@ -1,7 +1,7 @@
 #include "ICM_20948.h"
 
-#include "util/ICM_20948_REGISTERS.h"
-#include "util/AK09916_REGISTERS.h"
+#include "utils/ICM_20948_REGISTERS.h"
+#include "utils/AK09916_REGISTERS.h"
 
 // Forward Declarations
 ICM_20948_Status_e ICM_20948_write_I2C(uint8_t reg, uint8_t *data, uint32_t len, void *user);
@@ -109,7 +109,7 @@ void ICM_20948::debugPrintStatus(ICM_20948_Status_e stat)
     debugPrint(F("Sensor Not Supported"));
     break;
   case ICM_20948_Stat_DMPNotSupported:
-    debugPrint(F("DMP Firmware Not Supported. Is #define ICM_20948_USE_DMP commented in util/ICM_20948_C.h?"));
+    debugPrint(F("DMP Firmware Not Supported. Is #define ICM_20948_USE_DMP commented in utils/ICM_20948_C.h?"));
     break;
   case ICM_20948_Stat_DMPVerifyFail:
     debugPrint(F("DMP Firmware Verification Failed"));
@@ -577,7 +577,7 @@ const char *ICM_20948::statusString(ICM_20948_Status_e stat)
     return "Sensor Not Supported";
     break;
   case ICM_20948_Stat_DMPNotSupported:
-    return "DMP Firmware Not Supported. Is #define ICM_20948_USE_DMP commented in util/ICM_20948_C.h?";
+    return "DMP Firmware Not Supported. Is #define ICM_20948_USE_DMP commented in utils/ICM_20948_C.h?";
     break;
   case ICM_20948_Stat_DMPVerifyFail:
     return "DMP Firmware Verification Failed";
