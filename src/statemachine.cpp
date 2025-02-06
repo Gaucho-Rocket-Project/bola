@@ -3,7 +3,7 @@
 #include <chrono>
 #include <ctime>
 #include <iostream>
-
+#include <threads.h>
 #include <shared_mutex>
 
 #ifdef USE_WIRINGPI
@@ -31,8 +31,16 @@ sensor_module::~sensor_module() { delete this->_trigger; }
 
 
 void sensor_module::update_euler_angles() {
-
+    std::shared_lock<std::shared_mutex> lock(_state.mutex);
+    // Update euler angles here
+    std::shared_lock<std::shared_mutex> unlock(_state.mutex);
 }
+
+std::thread eurler_worker1(sensor_module::update_euler_angles);
+std::thread eurler_worker2(sensor_module::update_euler_angles);
+//Call threads when needed
+//eurler_worker1.join();
+//eurler_worker2.join(); etc.
 
 void sensor_module::update_height() {}
 
@@ -41,14 +49,16 @@ sensor_trigger::sensor_trigger(state_data &state) : _state(state), _parachute_sh
 int sensor_trigger::trigger_landing_legs() { return 0; } // TODO
 int sensor_trigger::trigger_second_motor() { return 0;} // TODO
 int sensor_trigger::trigger_parachute() {
-  std::shared_lock<std::shared_mutex> lock(_state.mutex);
+
     const tvc_data &tvc = _state.tvc_state; // Dereferencing the state to get the tvc_state and then checking the angles
 
     // Check to see if the angles exceed 45 degrees
+    std::shared_lock<std::shared_mutex> lock(_state.mutex);
     if (std::abs(tvc.euler_angles[0]) > CRITICAL_ANGLE || std::abs(tvc.euler_angles[1]) > CRITICAL_ANGLE) {
         this -> _parachute_shunt = true;  
         return 1;                 
     }
+    std::shared_lock<std::shared_mutex> unlock(_state.mutex);
 
     return 0; 
 }
@@ -74,9 +84,11 @@ void ReactionWheelController::update() {
     compute_pid(currentRoll, 0.0, _prevErrorRoll, _integralRoll, _pwmPinRoll);
     compute_pid(currentPitch, 0.0, _prevErrorPitch, _integralPitch, _pwmPinPitch);
     compute_pid(currentYaw, 0.0, _prevErrorYaw, _integralYaw, _pwmPinYaw);
+    std::shared_lock<std::shared_mutex> unlock(_state.mutex);
 }
 
 void ReactionWheelController::compute_pid(float currentAngle, float targetAngle, float& prevError, float& integral, int pwmPin) {
+    std::shared_lock<std::shared_mutex> lock(_state.mutex);
     float error = targetAngle - currentAngle;
     integral += error * TIME_STEP;
     float derivative = (error - prevError) / TIME_STEP;
@@ -92,4 +104,5 @@ void ReactionWheelController::compute_pid(float currentAngle, float targetAngle,
 
     pwmWrite(pwmPin, pwmValue);
     prevError = error;
+    std::shared_lock<std::shared_mutex> unlock(_state.mutex);
 }
