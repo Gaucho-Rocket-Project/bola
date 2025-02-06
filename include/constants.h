@@ -13,4 +13,6 @@
 #define PYRO_2 18
 #define PYRO_3 22
 
+typedef std::chrono::time_point<std::chrono::steady_clock> Time
+
 #endif
