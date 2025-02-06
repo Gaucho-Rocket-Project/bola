@@ -21,9 +21,3 @@ double ForwardEulerMethod(double startTime, double endTime, double yInitial, dou
 
 	return result;
 }
-
-int main() {
-
-	std::cout << "estimated value " << ForwardEulerMethod(0, 1, 1.2, 0.2) << std::endl;
-	return 0;
-}
