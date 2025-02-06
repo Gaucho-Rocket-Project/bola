@@ -8,6 +8,9 @@
 #include <shared_mutex>
 #include <thread>
 
+//forward declaration to avoid circular dependency
+struct state_data;
+
 struct tvc_data {
   float euler_angles[2];
   float angular_velocities[3];
