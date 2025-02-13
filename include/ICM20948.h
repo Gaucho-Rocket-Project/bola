@@ -24,7 +24,7 @@
  #ifndef ICM20948_H
  #define ICM20948_H
  
- #include <wiringPiSPI.h>
+ #include <wiringPiSPI.h> // will need to install wiringPiSPI library
  
  /** @cond DO_NOT_INCLUDE_WITH_DOXYGEN */
  
