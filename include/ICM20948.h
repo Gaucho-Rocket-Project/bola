@@ -24,7 +24,7 @@
  #ifndef ICM20948_H
  #define ICM20948_H
  
- #include <SPI.h>
+ #include <wiringPiSPI.h>
  
  /** @cond DO_NOT_INCLUDE_WITH_DOXYGEN */
  
