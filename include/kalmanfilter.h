@@ -6,8 +6,8 @@
 #include <chrono>
 #include <thread>
 #include <cmath>
-#include "ICM20948Driver.h"
-#include "BMP390Driver.h"
+#include <ICM20948.h>
+#include <bmp5.h>
 
 #endif // KALMANFILTER_H
 
