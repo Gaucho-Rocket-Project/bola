@@ -67,6 +67,16 @@
   *   'true' if successful,
   *   'false' on error.
   */
+
+  #include <sys/time.h>
+
+  uint64_t micros() {
+      struct timeval tv;
+      gettimeofday(&tv, NULL);
+      return (uint64_t)(tv.tv_sec) * 1000000 + tv.tv_usec;
+  }
+  
+
  bool ICM20948::init(int16_t *gyroOffset_1000dps_xyz, int16_t *accelOffset_32g_xyz, float *magOffset_xyz, float *magScale_xyz) {
      uint8_t data[1];
      
@@ -318,7 +328,14 @@
                  mz = -mz;                
                  
                  /* Apply hard and soft iron distortion correction */
-                 mx = ((mx + m_magOffset_xyz[0]) * m_magScale_xyz[0]) + 0.5;
+                 mx #include <sys/time.h>
+
+                 uint64_t micros() {
+                     struct timeval tv;
+                     gettimeofday(&tv, NULL);
+                     return (uint64_t)(tv.tv_sec) * 1000000 + tv.tv_usec;
+                 }
+                 = ((mx + m_magOffset_xyz[0]) * m_magScale_xyz[0]) + 0.5;
                  my = ((my + m_magOffset_xyz[1]) * m_magScale_xyz[1]) + 0.5;
                  mz = ((mz + m_magOffset_xyz[2]) * m_magScale_xyz[2]) + 0.5;
                  
