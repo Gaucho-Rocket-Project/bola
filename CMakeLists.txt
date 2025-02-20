@@ -27,13 +27,15 @@ list(REMOVE_ITEM CPP_SOURCES ${MAIN} ${TEST})
 # Create a library for common utilities
 add_library(utils STATIC ${C_SOURCES} ${CPP_SOURCES})
 
-# wiringpi
-find_library(WIRINGPI_LIB NAMES wiringPi)
-target_link_libraries(main PRIVATE ${WIRINGPI_LIB} utils)
-target_link_libraries(test PRIVATE ${WIRINGPI_LIB} utils)
-
 # Define the main executable
 add_executable(main ${MAIN})
 
 # Define the test executable
 add_executable(test ${TEST})
+
+# wiringpi
+find_library(WIRINGPI_LIB NAMES wiringPi)
+
+# Link libraries to the executables
+target_link_libraries(main PRIVATE ${WIRINGPI_LIB} utils)
+target_link_libraries(test PRIVATE ${WIRINGPI_LIB} utils)
