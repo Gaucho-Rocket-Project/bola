@@ -19,8 +19,8 @@ int main()
         std::cerr << "ERROR: Failed to initialize ICM-20948!\n";
         return -1;
     }
-    if (!initBMP390()) {
-        std::cerr << "ERROR: Failed to initialize BMP390!\n";
+    if (!initBMP581()) {
+        std::cerr << "ERROR: Failed to initialize BMP581!\n";
         return -1;
     }
 
@@ -64,7 +64,7 @@ int main()
         // A) Read sensors
         // ---------------------------------------------------------------------
         double accelZ = readICM20948AccelZ(); // m/s^2 (raw reading includes gravity)
-        double baroAltitude = readBMP390Altitude(); // altitude in meters
+        double baroAltitude = readBMP581Altitude(); // altitude in meters
 
         // net acceleration in vertical axis, subtract gravity if sensor has
         double netAccel = accelZ - G;
