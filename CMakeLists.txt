@@ -10,7 +10,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Define directories
 set(INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
 set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
-set(UTIL_DIR "${PROJECT_SOURCE_DIR}/utils")
 include_directories(${INCLUDE_DIR})
 
 # Find all source files
@@ -27,12 +26,14 @@ list(REMOVE_ITEM CPP_SOURCES ${MAIN} ${TEST})
 # Create a library for common utilities
 add_library(utils STATIC ${C_SOURCES} ${CPP_SOURCES})
 
+# Create the ICM20948 driver library
+add_library(icm20948 STATIC ${SRC_DIR}/icm20948.c)
+target_include_directories(icm20948 PRIVATE ${INCLUDE_DIR})
+
 # Define the main executable
 add_executable(main ${MAIN})
+target_link_libraries(main utils icm20948 pthread)
 
 # Define the test executable
 add_executable(test ${TEST})
-
-# Link libraries to the executables
-target_link_libraries(main PRIVATE wiringPi utils)
-target_link_libraries(test PRIVATE wiringPi utils)
+target_link_libraries(test utils icm20948 pthread)
