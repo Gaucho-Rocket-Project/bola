@@ -33,9 +33,6 @@ add_executable(main ${MAIN})
 # Define the test executable
 add_executable(test ${TEST})
 
-# wiringpi
-find_library(WIRINGPI_LIB NAMES wiringPi)
-
 # Link libraries to the executables
-target_link_libraries(main PRIVATE ${WIRINGPI_LIB} utils)
-target_link_libraries(test PRIVATE ${WIRINGPI_LIB} utils)
+target_link_libraries(main PRIVATE wiringPi utils)
+target_link_libraries(test PRIVATE wiringPi utils)
