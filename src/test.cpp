@@ -1,5 +1,6 @@
 #include <iostream>
-#include <wiringPi.h>
+
+#include "wiringPiTest.h"  
 
 #include "constants.h"
 #include "led.h"

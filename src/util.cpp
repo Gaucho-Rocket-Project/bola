@@ -1,7 +1,6 @@
 #include <iostream>
 #include <unistd.h>
 #include <cmath>
-#include <wiringPi.h>
 
 #include "constants.h"
 #include "util.h"
