@@ -1,6 +1,6 @@
 #include <iostream>
 #include <unistd.h>
-#include <wiringPi.h>
+// #include <wiringPi.h>
 
 #include "constants.h"
 #include "setup.h"

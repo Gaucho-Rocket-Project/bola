@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # Define directories
 set(INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
 set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
+set(UTIL_DIR "${PROJECT_SOURCE_DIR}/utils")
 include_directories(${INCLUDE_DIR})
 
 # Find all source files
@@ -28,8 +29,10 @@ add_library(utils STATIC ${C_SOURCES} ${CPP_SOURCES})
 
 # Define the main executable
 add_executable(main ${MAIN})
-target_link_libraries(main utils wiringPi pthread)
 
 # Define the test executable
 add_executable(test ${TEST})
-target_link_libraries(test utils wiringPi pthread)
+
+# Link libraries to the executables
+target_link_libraries(main PRIVATE wiringPi utils)
+target_link_libraries(test PRIVATE wiringPi utils)
