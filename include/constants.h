@@ -17,6 +17,7 @@
 #define GRAVITY 9.81
 #define TOTAL_ROCKET_MASS 10
 #define THRUST_FORCE 14.5
+#define TIME_STEP 0.01
 
 typedef std::chrono::time_point<std::chrono::system_clock> Time;
 
