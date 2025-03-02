@@ -24,7 +24,7 @@ sensor_module::sensor_module(state_data &mux) : mux(mux) {
 sensor_module::~sensor_module() { delete this->trigger; }
 
 double roll = 0.0, yaw = 0.0; // initial angles for test
-const int pitch = 0;
+const double pitch = 0.0; // always zero
 void sensor_module::update_euler_angles() { // updated
   // roll is x, pitch is y (zeroed out), yaw is z
 
@@ -53,7 +53,6 @@ void sensor_module::update_euler_angles() { // updated
             earthAngularRates[i] += J[i][j] * angularRates[j];
         }
     } 
-    // might not be correct from here on
     //integrate angular rates --> update angles at small steps using euler's method angle_n+1 = angle_n + ω * dt 
     roll  += earthAngularRates[0] * TIME_STEP; // x
     // pitch += earthAngularRates[1] * TIME_STEP; zeroed out
