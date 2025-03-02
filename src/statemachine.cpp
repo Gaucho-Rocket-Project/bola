@@ -6,6 +6,7 @@
 #include <vector> // added 
 #include <cmath> // added
 
+
 // float burnTime(Time initialBurnTime) {
 //   std::chrono::duration<double> duration =
 //       initialBurnTime -
@@ -23,29 +24,29 @@ sensor_module::sensor_module(state_data &mux) : mux(mux) {
 
 sensor_module::~sensor_module() { delete this->trigger; }
 
-double roll = 0.0, yaw = 0.0; // initial angles for test
-const double pitch = 0.0; // always zero
+float roll = 0.0, yaw = 0.0; // initial angles for test
+const float pitch = 0.0; // always zero
 void sensor_module::update_euler_angles() { // updated
   // roll is x, pitch is y (zeroed out), yaw is z
 
   // 1. get gyro_data vector 2. make matlab transformation matrix w/ cmath and store
   using namespace std;
 
-  vector<double> angularRates = gyro_data; // tried to take gyro_data as a vector of doubles (idk how cuz its different data type lol)
+  vector<float> angularRates = {static_cast<float>(gyro_data.x),static_cast<float>(gyro_data.y),static_cast<float>(gyro_data.z)}; // static_cast from int16_t to float
     
-    double p = angularRates[0];
-    double q = angularRates[1];
-    double r = angularRates[2];
+    float p = angularRates[0];
+    float q = angularRates[1];
+    float r = angularRates[2];
     
     // transformation matrix J from matlab
-    vector<vector<double>> J = { // vector of vectors of doubles
+    vector<vector<float>> J = { // vector of vectors of float
         {1, sin(roll) * tan(pitch), cos(roll) * tan(pitch)},
         {0, cos(roll), -sin(roll)},
         {0, sin(roll) / cos(pitch), cos(roll) / cos(pitch)}
     };
     
     // initialize angular rates vector in earth reference frame
-    vector<double> earthAngularRates(3, 0.0);
+    vector<float> earthAngularRates(3, 0.0);
     
     // matrix multiplication
     for (int i = 0; i < 3; ++i) {
