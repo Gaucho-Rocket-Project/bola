@@ -2,12 +2,6 @@
 #include <iostream>
 #include <unistd.h>
 
-#ifdef USE_WIRINGPI
-#include <wiringPi.h>
-#else
-#include "wiringPiTest.h"  
-#endif
-
 #include "motor.h"
 #include "constants.h"
 

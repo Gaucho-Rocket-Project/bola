@@ -31,7 +31,7 @@ if(WIRINGPI_INCLUDE_DIR AND WIRINGPI_LIBRARY)
     message(STATUS "WiringPi found: ${WIRINGPI_INCLUDE_DIR}")
     set(USE_WIRINGPI TRUE)
 else()
-    message(WARNING "WiringPi not found! Using test implementation.")
+    message(STATUS "WiringPi not found. Using test implementation.")
     set(USE_WIRINGPI FALSE)
 endif()
 
@@ -52,6 +52,6 @@ else()
 endif()
 
 # Define the test executable (always uses dummy WiringPi)
-add_executable(test ${TEST} ${SRC_DIR}/wiringPiTest.cpp)
+add_executable(test ${TEST} ${SRC_DIR}/logger.cpp)
 target_compile_definitions(test PRIVATE USE_WIRINGPI=0)  # Explicitly disable WiringPi
 target_link_libraries(test utils icm20948 pthread)
