@@ -1,4 +1,4 @@
-#include "wiringPiTest.h"
+#include "logger.h"
 
 void pinMode(int pin, int mode) {
     std::cout << "[MOCK] pinMode(" << pin << ", " << mode << ")" << std::endl;

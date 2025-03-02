@@ -5,6 +5,8 @@
 #include "constants.h"
 #include "icm20948_api.h"
 
+#include <shared_mutex>
+
 struct tvc_data {
   float euler_angles[2];
   float angular_velocities[3];
@@ -16,26 +18,12 @@ struct state_data {
   tvc_data tvc_state;
   float height;
   Time start_time;
-};
-
-class sensor_module {
-  icm20948_gyro_t gyro_data;
-  icm20948_accel_t accelerometer_data;
-  state_data &mux;
-  sensor_trigger *trigger;
-
-public:
-  sensor_module(state_data &mux);
-
-  ~sensor_module();
-
-  void update_euler_angles();
-  void update_height();
+  mutable std::shared_mutex mutex;
 };
 
 class sensor_trigger {
 
-  bool parachute_shunt;
+  bool _parachute_shunt;
 
 public:
   sensor_trigger();
@@ -45,11 +33,26 @@ public:
   int trigger_parachute();
 };
 
-class tvc {
-  state_data &mux;
+class sensor_module {
+  icm20948_gyro_t _gyro_data;
+  icm20948_accel_t _accelerometer_data;
+  state_data &_state;
+  sensor_trigger *_trigger;
 
 public:
-  tvc(state_data &mux);
+  sensor_module(state_data &state);
+
+  ~sensor_module();
+
+  void update_euler_angles();
+  void update_height();
+};
+
+class tvc {
+  state_data &_state;
+
+public:
+  tvc(state_data &state);
 };
 
 #endif
