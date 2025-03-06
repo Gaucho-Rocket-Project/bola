@@ -3,10 +3,17 @@
 
 #include <chrono>
 
+#ifdef USE_WIRINGPI
+#include <wiringPi.h>
+#else
+#include "logger.h"  
+#endif
+
 #define GRAVITY 9.81
 #define TOTAL_ROCKET_MASS 10
 #define THRUST_FORCE 14.5
 #define TIME_STEP 0.01
+#define CRITICAL_ANGLE 45
 
 enum led_state {
     NONE = 0,

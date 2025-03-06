@@ -27,7 +27,8 @@ class sensor_trigger {
   bool _parachute_shunt;
 
 public:
-  sensor_trigger();
+  sensor_trigger(state_data &state);
+  state_data &_state;
 
   int trigger_landing_legs();
   int trigger_second_motor();
