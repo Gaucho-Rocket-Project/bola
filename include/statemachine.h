@@ -6,6 +6,7 @@
 #include "icm20948_api.h"
 
 #include <shared_mutex>
+#include <thread>
 
 struct tvc_data {
   float euler_angles[2];
@@ -59,5 +60,18 @@ class tvc {
 public:
   tvc(state_data &state);
 };
+
+class statemachine {
+
+    state_data &_state;
+    tvc *tvc;
+    std::thread* threads;
+
+
+    public:
+
+    statemachine();
+};
+
 
 #endif
