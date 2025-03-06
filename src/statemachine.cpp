@@ -12,8 +12,6 @@
 #include "logger.h"  
 #endif
 
-float roll = 0.0, yaw = 0.0;
-
 // float burnTime(Time initialBurnTime) {
 //   std::chrono::duration<double> duration =
 //       initialBurnTime -
@@ -31,10 +29,16 @@ sensor_module::~sensor_module() { delete this->_trigger; }
 
 
 void sensor_module::update_euler_angles() {
-
+  
 }
 
-void sensor_module::update_height() {}
+void sensor_module::update_height() {
+  std::unique_lock<std::shared_mutex> lock(_state.mutex);
+  state_data &state = _state;
+  
+  state.height = 0;
+  return; // STUB
+}
 
 sensor_trigger::sensor_trigger(state_data &state) : _state(state), _parachute_shunt(1) {}
 
@@ -46,7 +50,7 @@ int sensor_trigger::trigger_parachute() {
 
     // Check to see if the angles exceed 45 degrees
     if (std::abs(tvc.euler_angles[0]) > CRITICAL_ANGLE || std::abs(tvc.euler_angles[1]) > CRITICAL_ANGLE) {
-        this -> _parachute_shunt = true;  
+        _parachute_shunt = true;  
         return 1;                 
     }
 
@@ -54,3 +58,12 @@ int sensor_trigger::trigger_parachute() {
 }
 
 tvc::tvc(state_data &state) : _state(state) {}
+
+void tvc_data::update_control_signal(state_data &state) {
+  std::unique_lock<std::shared_mutex> lock(_state.mutex);
+  tvc_data &tvc = _state.tvc_state;
+
+  for (uint8_t axis = 0; axis < 2; ++axis) {
+    tvc.cs[axis] = (Kp * tvc.euler_angles[axis]) + (Ki * tvc.angle_summations[axis]) + (Kd * tvc.angular_velocities[axis]);
+  }
+}

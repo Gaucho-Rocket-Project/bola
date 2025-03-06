@@ -12,6 +12,10 @@ struct tvc_data {
   float angular_velocities[3];
   float angle_summations[2];
   float cs[2];
+
+  public:
+  void update_control_signal(state_data &state);
+  state_data &_state;
 };
 
 struct state_data {
@@ -47,7 +51,7 @@ public:
 
   void update_euler_angles();
   void update_height();
-};
+};  
 
 class tvc {
   state_data &_state;
