@@ -23,7 +23,7 @@
 //          ((2 * THRUST_FORCE) / (GRAVITY * TOTAL_ROCKET_MASS) - 1);
 // }
 
-sensor_module::sensor_module(state_data &state) : _state(state), _trigger(new sensor_trigger()) {}
+sensor_module::sensor_module(state_data &state) : _state(state), _trigger(new sensor_trigger(state)) {}
 
 sensor_module::~sensor_module() { delete this->_trigger; }
 
