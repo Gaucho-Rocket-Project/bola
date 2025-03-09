@@ -22,7 +22,15 @@ enum led_state {
     GREEN = 3
 };
 
+constexpr float P0 = 101325.0;   // Sea-level pressure in Pa
+constexpr float T0 = 288.15;     // Sea-level temperature in Kelvin (15°C)
+constexpr float L = 0.0065;      // Temperature lapse rate (K/m)
+constexpr float R = 8.31432;     // Universal gas constant (J/mol·K)
+constexpr float M = 0.028964;    // Molar mass of Earth's air (kg/mol)
 
+constexpr float Kp = 1.0;
+constexpr float Ki = 2.0;
+constexpr float Kd = 3.0;
 
 constexpr int pyro_1 = 16;
 constexpr int pyro_2 = 18;

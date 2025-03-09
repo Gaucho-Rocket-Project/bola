@@ -3,6 +3,7 @@
 #include <chrono>
 #include <ctime>
 #include <iostream>
+#include <cmath>
 
 #include <shared_mutex>
 
@@ -35,9 +36,10 @@ void sensor_module::update_euler_angles() {
 void sensor_module::update_height() {
   std::unique_lock<std::shared_mutex> lock(_state.mutex);
   state_data &state = _state;
-  
-  state.height = 0;
-  return; // STUB
+
+  float pressure_reading = 0; // implement reading from barometer
+
+  _state.height = -((R * T0) / (TOTAL_ROCKET_MASS * GRAVITY)) * ((std::log(pressure_reading / P0)) / (std::log(2.71828)));
 }
 
 sensor_trigger::sensor_trigger(state_data &state) : _state(state), _parachute_shunt(1) {}
