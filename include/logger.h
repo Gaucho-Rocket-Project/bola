@@ -3,21 +3,14 @@
 
 #include <iostream>
 
-#define HIGH 1
-#define LOW 0
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#define PWM_OUTPUT 2
+#include <wiringPi.h>
 
-#define OUTPUT 1
-#define INPUT 0
-
-
-// Psuedo wiringPi functions for testing
-void pinMode(int pin, int mode);
-void digitalWrite(int pin, int value);
-void pwmWrite(int pin, int value);
-void usleep(int ms);
-
-void wiringPiSetupGpio();
+#ifdef __cplusplus
+}
+#endif
 
 #endif // LOGGER_H
