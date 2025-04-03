@@ -4,6 +4,7 @@
 #include <ctime>
 #include <iostream>
 #include <cmath>
+#include <fstream>
 
 #include <shared_mutex>
 
@@ -24,6 +25,8 @@
 //          ((2 * THRUST_FORCE) / (GRAVITY * TOTAL_ROCKET_MASS) - 1);
 // }
 
+auto program_start = std::chrono::steady_clock::now();
+
 sensor_module::sensor_module(state_data &state) : _state(state), _trigger(new sensor_trigger(state)) {}
 
 sensor_module::~sensor_module() { delete this->_trigger; }
@@ -40,6 +43,16 @@ void sensor_module::update_height() {
   float pressure_reading = 0; // implement reading from barometer TODO
 
   _state.height = -((R * T0) / (TOTAL_ROCKET_MASS * GRAVITY)) * ((std::log(pressure_reading / P0)) / (std::log(2.71828)));
+}
+
+void log_height(float height){ //TODO: add timer to count time by the milliseconds right after launch
+    std::ofstream log_file("heightlog.txt", std::ios::app);
+    if (log_file.is_open()){
+        log_file << seconds << "." << milliseconds << " s, Height: " << height << " meters\n"; 
+        log_file.close();
+    }else{
+        std::cout << "Cannot open heightlog.txt" << std::endl;
+    }
 }
 
 sensor_trigger::sensor_trigger(state_data &state) : _state(state), _parachute_shunt(1) {}
