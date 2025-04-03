@@ -38,8 +38,8 @@ void sensor_module::update_height() {}
 
 sensor_trigger::sensor_trigger(state_data &state) : _state(state), _parachute_shunt(1) {}
 
-int sensor_trigger::trigger_landing_legs() {}
-int sensor_trigger::trigger_second_motor() {}
+int sensor_trigger::trigger_landing_legs() { return 0; }
+int sensor_trigger::trigger_second_motor() { return 0;}
 int sensor_trigger::trigger_parachute() {
   std::shared_lock<std::shared_mutex> lock(_state.mutex);
     const tvc_data &tvc = _state.tvc_state; // Dereferencing the state to get the tvc_state and then checking the angles
@@ -84,7 +84,7 @@ void ReactionWheelController::compute_pid(float currentAngle, float targetAngle,
     float output = _Kp * error + _Ki * integral + _Kd * derivative;
 
     int pwmValue = static_cast<int>(fabs(output));
-    pwmValue = std::clamp(pwmValue, 0, 1024);
+    pwmValue = std::max(0, std::min(pwmValue, 1024));
 
     if (output < 0) {
         pwmValue = 1024 - pwmValue;

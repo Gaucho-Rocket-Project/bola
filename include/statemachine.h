@@ -86,7 +86,7 @@ class ReactionWheelController {
 class statemachine {
 
     state_data &_state;
-    tvc *tvc;
+    tvc *_tvc;
     std::thread* threads;
 
 
