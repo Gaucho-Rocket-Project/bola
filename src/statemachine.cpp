@@ -37,7 +37,7 @@ void sensor_module::update_height() {
   std::unique_lock<std::shared_mutex> lock(_state.mutex);
   state_data &state = _state;
 
-  float pressure_reading = 0; // implement reading from barometer
+  float pressure_reading = 0; // implement reading from barometer TODO
 
   _state.height = -((R * T0) / (TOTAL_ROCKET_MASS * GRAVITY)) * ((std::log(pressure_reading / P0)) / (std::log(2.71828)));
 }
