@@ -16,7 +16,7 @@ void usleep(int ms) {
     std::cout << "[MOCK] usleep(" << ms << ")" << std::endl;   
 }
 
-void wiringPiSetupGpio() {
-    std::cout << "[MOCK] wiringPiSetupGpio()" << std::endl;
-}
+// void wiringPiSetupGpio() {
+//     std::cout << "[MOCK] wiringPiSetupGpio()" << std::endl;
+// }
 
