@@ -52,6 +52,7 @@ public:
 
   void update_euler_angles();
   void update_height();
+  void log_height(float height);
 };  
 
 class tvc {
