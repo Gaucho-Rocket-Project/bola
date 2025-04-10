@@ -38,8 +38,8 @@ void sensor_module::update_height() {}
 
 sensor_trigger::sensor_trigger(state_data &state) : _state(state), _parachute_shunt(1) {}
 
-int sensor_trigger::trigger_landing_legs() { return 0; }
-int sensor_trigger::trigger_second_motor() { return 0;}
+int sensor_trigger::trigger_landing_legs() { return 0; } // TODO
+int sensor_trigger::trigger_second_motor() { return 0;} // TODO
 int sensor_trigger::trigger_parachute() {
   std::shared_lock<std::shared_mutex> lock(_state.mutex);
     const tvc_data &tvc = _state.tvc_state; // Dereferencing the state to get the tvc_state and then checking the angles
