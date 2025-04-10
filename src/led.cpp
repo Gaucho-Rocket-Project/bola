@@ -1,51 +1,47 @@
 #include <iostream>
 
-#ifdef USE_WIRINGPI
-#include <wiringPi.h>
-#else
-#include "wiringPiTest.h"  
-#endif
+
 
 #include "constants.h"
 #include "led.h"
 
-void parseLED(ushort state = 0) {
+void parseLED(led_state state = NONE) {
 
   switch (state) {
   case RED:
 
-    std::cout << "R( " << LED_R << "): 0" << std::endl;
-    std::cout << "G( " << LED_G << "): 1" << std::endl;
-    std::cout << "B( " << LED_B << "): 1" << std::endl;
+    std::cout << "R( " << led_r << "): 0" << std::endl;
+    std::cout << "G( " << led_g << "): 1" << std::endl;
+    std::cout << "B( " << led_b << "): 1" << std::endl;
 
-    digitalWrite(LED_R, LOW);
-    digitalWrite(LED_G, HIGH);
-    digitalWrite(LED_B, HIGH);
+    digitalWrite(led_r, LOW);
+    digitalWrite(led_g, HIGH);
+    digitalWrite(led_b, HIGH);
     break;
   case YELLOW:
 
-    std::cout << "R( " << LED_R << "): 0" << std::endl;
-    std::cout << "G( " << LED_G << "): 0" << std::endl;
-    std::cout << "B( " << LED_B << "): 1" << std::endl;
+    std::cout << "R( " << led_r << "): 0" << std::endl;
+    std::cout << "G( " << led_g << "): 0" << std::endl;
+    std::cout << "B( " << led_b << "): 1" << std::endl;
 
-    digitalWrite(LED_R, LOW);
-    digitalWrite(LED_G, LOW);
-    digitalWrite(LED_B, HIGH);
+    digitalWrite(led_r, LOW);
+    digitalWrite(led_g, LOW);
+    digitalWrite(led_b, HIGH);
     break;
   case GREEN:
 
-    std::cout << "R( " << LED_R << "): 1" << std::endl;
-    std::cout << "G( " << LED_G << "): 0" << std::endl;
-    std::cout << "B( " << LED_B << "): 1" << std::endl;
+    std::cout << "R( " << led_r << "): 1" << std::endl;
+    std::cout << "G( " << led_g << "): 0" << std::endl;
+    std::cout << "B( " << led_b << "): 1" << std::endl;
 
-    digitalWrite(LED_R, HIGH);
-    digitalWrite(LED_G, LOW);
-    digitalWrite(LED_B, HIGH);
+    digitalWrite(led_r, HIGH);
+    digitalWrite(led_g, LOW);
+    digitalWrite(led_b, HIGH);
     break;
   default:
-    digitalWrite(LED_R, HIGH);
-    digitalWrite(LED_G, HIGH);
-    digitalWrite(LED_B, HIGH);
+    digitalWrite(led_r, HIGH);
+    digitalWrite(led_g, HIGH);
+    digitalWrite(led_b, HIGH);
   }
 }
 

@@ -1,5 +1,5 @@
-#ifndef WIRINGPI_TEST_H
-#define WIRINGPI_TEST_H
+#ifndef LOGGER_H
+#define LOGGER_H
 
 #include <iostream>
 
@@ -9,8 +9,9 @@
 #define OUTPUT 1
 #define INPUT 0
 
+#define PWM_OUTPUT 2
 
-// Fake wiringPi functions for testing
+// Psuedo wiringPi functions for testing
 void pinMode(int pin, int mode);
 void digitalWrite(int pin, int value);
 void pwmWrite(int pin, int value);
@@ -18,4 +19,4 @@ void usleep(int ms);
 
 void wiringPiSetupGpio();
 
-#endif // WIRINGPI_TEST_H
+#endif // LOGGER_H

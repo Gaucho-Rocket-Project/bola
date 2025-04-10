@@ -5,6 +5,7 @@
 #include "setup.h"
 
 #include "icm20948_api.h"
+#include "bmp5.h"
 
 int main() {
   setup();

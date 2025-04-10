@@ -4,7 +4,7 @@
 #include "constants.h"
 #include <iostream>
 
-void parseLED(ushort state);
+void parseLED(led_state state);
 
 void testLED();
 
