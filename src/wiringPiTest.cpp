@@ -20,3 +20,7 @@ void wiringPiSetupGpio() {
     std::cout << "[MOCK] wiringPiSetupGpio()" << std::endl;
 }
 
+void digitalRead(int pin){
+    std::cout << "[MOCK] digitalRead(" << pin << ")" << std::endl;
+}
+

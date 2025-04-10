@@ -13,6 +13,7 @@
 // Fake wiringPi functions for testing
 void pinMode(int pin, int mode);
 void digitalWrite(int pin, int value);
+void digitalRead(int pin);
 void pwmWrite(int pin, int value);
 void usleep(int ms);
 
