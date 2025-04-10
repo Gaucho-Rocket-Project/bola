@@ -29,6 +29,11 @@ sensor_module::sensor_module(state_data &state) : _state(state), _trigger(new se
 sensor_module::~sensor_module() { delete this->_trigger; }
 
 
+//function pointers
+icm20948_read_fptr_t read_func = digitalRead;
+icm20948_write_fptr_t write_func = digitalWrite;
+icm20948_delay_us_fptr_t delay_func = usleep;
+
 void sensor_module::update_euler_angles() {
   
 }
