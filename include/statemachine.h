@@ -62,10 +62,36 @@ public:
   tvc(state_data &state);
 };
 
+class ReactionWheelController {
+  private:
+      state_data& _state;
+      const int _pwmPinRoll;
+      const int _pwmPinPitch;
+      const int _pwmPinYaw;
+      // pid constants
+      const float _Kp = 2.0;       // proportional gain
+      const float _Ki = 0.1;       // integral gain
+      const float _Kd = 0.5;       // derivative gain
+      // error terms
+      float _prevErrorRoll = 0;
+      float _prevErrorPitch = 0;
+      float _prevErrorYaw = 0;
+      float _integralRoll = 0;
+      float _integralPitch = 0;
+      float _integralYaw = 0;
+  
+  public:
+      ReactionWheelController(state_data& state, int rollPin, int pitchPin, int yawPin);
+      void update();
+  
+  private:
+      void compute_pid(float currentAngle, float targetAngle, float& prevError, float& integral, int pwmPin);
+  };
+
 class statemachine {
 
     state_data &_state;
-    tvc *tvc;
+    tvc *_tvc;
     std::thread* threads;
 
 

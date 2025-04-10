@@ -9,6 +9,7 @@
 #define OUTPUT 1
 #define INPUT 0
 
+#define PWM_OUTPUT 2
 
 // Psuedo wiringPi functions for testing
 void pinMode(int pin, int mode);

@@ -25,9 +25,7 @@
 //          ((2 * THRUST_FORCE) / (GRAVITY * TOTAL_ROCKET_MASS) - 1);
 // }
 
-auto program_start = std::chrono::steady_clock::now();
-
-sensor_module::sensor_module(state_data &state) : _state(state), _trigger(new sensor_trigger(state)) {}
+sensor_module::sensor_module(state_data &state) : _state(state), _trigger(new sensor_trigger()) {}
 
 sensor_module::~sensor_module() { delete this->_trigger; }
 
@@ -62,8 +60,8 @@ void log_height(float height){ //TODO: add timer to count time by the millisecon
 
 sensor_trigger::sensor_trigger(state_data &state) : _state(state), _parachute_shunt(1) {}
 
-int sensor_trigger::trigger_landing_legs() {}
-int sensor_trigger::trigger_second_motor() {}
+int sensor_trigger::trigger_landing_legs() { return 0; } // TODO
+int sensor_trigger::trigger_second_motor() { return 0;} // TODO
 int sensor_trigger::trigger_parachute() {
   std::shared_lock<std::shared_mutex> lock(_state.mutex);
     const tvc_data &tvc = _state.tvc_state; // Dereferencing the state to get the tvc_state and then checking the angles
@@ -78,12 +76,3 @@ int sensor_trigger::trigger_parachute() {
 }
 
 tvc::tvc(state_data &state) : _state(state) {}
-
-void tvc_data::update_control_signal(state_data &state) {
-  std::unique_lock<std::shared_mutex> lock(_state.mutex);
-  tvc_data &tvc = _state.tvc_state;
-
-  for (uint8_t axis = 0; axis < 2; ++axis) {
-    tvc.cs[axis] = (Kp * tvc.euler_angles[axis]) + (Ki * tvc.angle_summations[axis]) + (Kd * tvc.angular_velocities[axis]);
-  }
-}
