@@ -3,10 +3,10 @@
 
 #include <chrono>
 
-#ifdef USE_WIRINGPI
+#if defined(USE_WIRINGPI) && (USE_WIRINGPI == 1)
 #include <wiringPi.h>
 #else
-#include "logger.h"  
+#include "logger.h"
 #endif
 
 #define GRAVITY 9.81

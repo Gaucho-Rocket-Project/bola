@@ -2,16 +2,21 @@
 #define LOGGER_H
 
 #include <iostream>
-#include <unistd.h>  // for usleep()
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define HIGH 1
+#define LOW 0
 
-#include <wiringPi.h> // use wiringPi instead of defining functions
+#define OUTPUT 1
+#define INPUT 0
 
-#ifdef __cplusplus
-}
-#endif
+#define PWM_OUTPUT 2
+
+// Psuedo wiringPi functions for testing
+void pinMode(int pin, int mode);
+void digitalWrite(int pin, int value);
+void pwmWrite(int pin, int value);
+void usleep(int ms);
+
+void wiringPiSetupGpio();
 
 #endif // LOGGER_H
