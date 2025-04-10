@@ -36,8 +36,8 @@ void sensor_module::update_euler_angles() {
     std::shared_lock<std::shared_mutex> unlock(_state.mutex);
 }
 
-std::thread eurler_worker1(sensor_module::update_euler_angles);
-std::thread eurler_worker2(sensor_module::update_euler_angles);
+//std::thread eurler_worker1(&sensor_module::update_euler_angles);
+//std::thread eurler_worker2(&sensor_module::update_euler_angles);
 //Call threads when needed
 //eurler_worker1.join();
 //eurler_worker2.join(); etc.
