@@ -1,12 +1,3 @@
-# Dynamically detect MacOS SDK path (portable)
-if(APPLE)
-    execute_process(
-        COMMAND xcrun --sdk macosx --show-sdk-path
-        OUTPUT_VARIABLE CMAKE_OSX_SYSROOT
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-endif()
-
 cmake_minimum_required(VERSION 3.10)
 
 # Project Name and Language

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <cmath>
 #include <fstream>
-#include <threads.h>
+#include <thread>
 #include <shared_mutex>
 
 #ifdef USE_WIRINGPI
@@ -46,17 +46,15 @@ icm20948_delay_us_fptr_t delay_func = delay_us;
 void sensor_module::update_euler_angles() {
     std::shared_lock<std::shared_mutex> lock(_state.mutex);
     // Update euler angles here
-    std::shared_lock<std::shared_mutex> unlock(_state.mutex);
 }
 
 void sensor_module::update_height() {
-  std::shared_lock<std::shared_mutex> lock(_state.mutex);
+    std::shared_lock<std::shared_mutex> lock(_state.mutex);
   state_data &state = _state;
 
   float pressure_reading = 0; // implement reading from barometer TODO
 
   _state.height = -((R * T0) / (TOTAL_ROCKET_MASS * GRAVITY)) * ((std::log(pressure_reading / P0)) / (std::log(2.71828)));
-  std::shared_lock<std::shared_mutex> unlock(_state.mutex);
 }
 
 // missing variables!
@@ -84,7 +82,6 @@ int sensor_trigger::trigger_parachute() {
         _parachute_shunt = true;  
         return 1;                 
     }
-    std::shared_lock<std::shared_mutex> unlock(_state.mutex);
 
     return 0; 
 }
@@ -110,7 +107,6 @@ void ReactionWheelController::update() {
     compute_pid(currentRoll, 0.0, _prevErrorRoll, _integralRoll, _pwmPinRoll);
     compute_pid(currentPitch, 0.0, _prevErrorPitch, _integralPitch, _pwmPinPitch);
     compute_pid(currentYaw, 0.0, _prevErrorYaw, _integralYaw, _pwmPinYaw);
-    std::shared_lock<std::shared_mutex> unlock(_state.mutex);
 }
 
 void ReactionWheelController::compute_pid(float currentAngle, float targetAngle, float& prevError, float& integral, int pwmPin) {
@@ -130,5 +126,4 @@ void ReactionWheelController::compute_pid(float currentAngle, float targetAngle,
 
     pwmWrite(pwmPin, pwmValue);
     prevError = error;
-    std::shared_lock<std::shared_mutex> unlock(_state.mutex);
 }

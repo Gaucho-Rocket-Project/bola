@@ -1,20 +1,24 @@
 #include <iostream>
 #include <unistd.h>
 #include <cmath>
-#include <threads.h>
+#include <thread>
 #include <shared_mutex>
 #include "constants.h"
 #include "util.h"
 
+std::shared_mutex sharedMutex;
+
 // @param: intial_burn_time
 Time calculateSecondMotorActivation(Time initial_burn_time, float motor_acceleration, float upward_drag_coefficient, float downward_drag_coefficient) {
-    std::shared_lock<std::shared_mutex> lock();
+	std::shared_lock<std::shared_mutex> lock(sharedMutex);
 	// @todo: write function
-    std::shared_lock<std::shared_mutex> unlock();
+	Time placeholder;
+	return placeholder;
+	// mutex automatically unlocks when function ends
 }
 
 double ForwardEulerMethod(double startTime, double endTime, double yInitial) {
-	std::shared_lock<std::shared_mutex> lock();
+	std::shared_lock<std::shared_mutex> lock(sharedMutex);
 	// calculate the number of steps
 	int numSteps = static_cast<int>((endTime - startTime) / TIME_STEP);
 
@@ -29,5 +33,5 @@ double ForwardEulerMethod(double startTime, double endTime, double yInitial) {
 	}
 
 	return result;
-    std::shared_lock<std::shared_mutex> unlock();
+	// mutex automatically unlocks at end of function
 }

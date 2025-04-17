@@ -17,7 +17,6 @@ struct tvc_data {
   float angle_summations[2];
   float cs[2];
 
-  public:
   void update_control_signal(state_data &state);
   state_data &_state;
 };
@@ -47,6 +46,7 @@ class sensor_module {
   icm20948_accel_t _accelerometer_data;
   state_data &_state;
   sensor_trigger *_trigger;
+  std::shared_mutex mutex;
 
 public:
   sensor_module(state_data &state);
@@ -82,6 +82,8 @@ class ReactionWheelController {
       float _integralRoll = 0;
       float _integralPitch = 0;
       float _integralYaw = 0;
+      // mutex
+      std::shared_mutex mutex;
   
   public:
       ReactionWheelController(state_data& state, int rollPin, int pitchPin, int yawPin);
