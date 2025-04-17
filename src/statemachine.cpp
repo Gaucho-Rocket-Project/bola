@@ -31,7 +31,12 @@ sensor_module::~sensor_module() { delete this->_trigger; }
 
 
 //function pointers
-//icm20948_read_fptr_t *read_func = digitalRead; //function doens't exist!
+signed char read_us(uint8_t addr, uint8_t *data, uint32_t len) {
+    digitalRead(addr);
+    return 0;
+}
+icm20948_read_fptr_t read_func = &read_us;
+
 signed char write_us(uint8_t addr, const uint8_t *data, uint32_t len) {
     digitalWrite(addr, *data);
     return 0;

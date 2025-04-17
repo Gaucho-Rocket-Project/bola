@@ -1,5 +1,10 @@
 #include "logger.h"
 
+int digitalRead(int pin) {
+    std::cout << "[MOCK] digitalRead(" << pin << ")" << std::endl;
+    return LOW;
+}
+
 void pinMode(int pin, int mode) {
     std::cout << "[MOCK] pinMode(" << pin << ", " << mode << ")" << std::endl;
 }

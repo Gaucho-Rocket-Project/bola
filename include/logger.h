@@ -12,6 +12,7 @@
 #define PWM_OUTPUT 2
 
 // Psuedo wiringPi functions for testing
+int digitalRead(int pin);
 void pinMode(int pin, int mode);
 void digitalWrite(int pin, int value);
 void pwmWrite(int pin, int value);
