@@ -1,12 +1,15 @@
 #include <Wire.h>
+#include <BluetoothSerial.h>
 #include <ArduinoOTA.h> // For OTA updates
-
+//https://www.youtube.com/watch?v=MHxw4yaNKVw&t=179s og youtube video, check comments for ideas
 #define MPU6050 0x68
 #define MOTOR 9
 #define DIR 4
 #define MOTOR_PWM_CHANNEL 0
 #define MOTOR_PWM_FREQ 5000
 #define MOTOR_PWM_RES 8
+
+BluetoothSerial SerialBT;
 
 // PID parameters (tune K, others are fractions)
 float K_outer = 100;
@@ -130,8 +133,40 @@ void writeTo(byte device, byte address, byte value) {
   Wire.write(value);
   Wire.endTransmission(true);
 }
+// Call this in setup()
+void setupBluetooth() {
+    SerialBT.begin("ESP32_PID_Tuner"); // Bluetooth device name
+}
 
-// Placeholder for web-based PID tuning (implement with BLE/WebSerial/WebSocket)
+// Call this in loop()
 void checkWebBluetooth() {
-  // To be implemented: receive PID params from web page via BLE/WebSerial
+    if (SerialBT.available()) {
+        String input = SerialBT.readStringUntil('\n');
+        input.trim();
+        // Expected format: OUTER:K,Ki,Kd;INNER:K,Ki,Kd
+        // Example: OUTER:120,0.06,0.12;INNER:60,0.03,0.07
+        int outerIdx = input.indexOf("OUTER:");
+        int innerIdx = input.indexOf("INNER:");
+        if (outerIdx != -1 && innerIdx != -1) {
+            String outerParams = input.substring(outerIdx + 6, input.indexOf(';', outerIdx));
+            String innerParams = input.substring(innerIdx + 6);
+
+            int k1 = outerParams.indexOf(',');
+            int k2 = outerParams.lastIndexOf(',');
+            if (k1 != -1 && k2 != -1 && k1 != k2) {
+                K_outer = outerParams.substring(0, k1).toFloat();
+                Ki_outer = outerParams.substring(k1 + 1, k2).toFloat();
+                Kd_outer = outerParams.substring(k2 + 1).toFloat();
+            }
+
+            k1 = innerParams.indexOf(',');
+            k2 = innerParams.lastIndexOf(',');
+            if (k1 != -1 && k2 != -1 && k1 != k2) {
+                K_inner = innerParams.substring(0, k1).toFloat();
+                Ki_inner = innerParams.substring(k1 + 1, k2).toFloat();
+                Kd_inner = innerParams.substring(k2 + 1).toFloat();
+            }
+            Serial.println("PID parameters updated via Bluetooth.");
+        }
+    }
 }
