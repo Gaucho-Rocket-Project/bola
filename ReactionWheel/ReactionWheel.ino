@@ -9,7 +9,7 @@
 #define VBAT        32
 #define INT_LED     2
 
-#define MPU6050       0x68     // Device address
+#define MPU6050_ADDR  0x68     // Device address
 #define ACCEL_CONFIG  0x1C     // Accelerometer configuration address
 #define GYRO_CONFIG   0x1B     // Gyro configuration address
 
@@ -38,7 +38,14 @@ void doA() {
 void doB() {
   sensor.handleB();
 }
-
+void Tuning() {
+    // TODO: Implement tuning logic or leave empty for now
+  }
+  
+  float controller(float angle, float gyro, float speed, float position) {
+    // TODO: Implement your controller logic
+    return 0.0;
+  }
 BLDCMotor motor = BLDCMotor(7); 
 BLDCDriver3PWM driver = BLDCDriver3PWM(25, 26, 27, 23);
 
@@ -89,12 +96,65 @@ int loop_time = 8;
 
 int up_led, up_led_dir;
 int led_calibrating_step = 0;
-
+// Placeholder for angle_setup function
+void angle_setup() {
+    // This function calibrates the angle offsets for two positions.
+    // Place the robot in the first calibration position and press a button or send a command to continue.
+    // Repeat for the second position.
+  
+    Serial.println("Starting angle calibration...");
+    #if (USE_BT)
+      SerialBT.println("Starting angle calibration...");
+    #endif
+  
+    calibrating = true;
+    calibrating_step = 1;
+  
+    // Calibrate first position (e.g., left side)
+    Serial.println("Place the robot in the first calibration position and press ENTER.");
+    #if (USE_BT)
+      SerialBT.println("Place the robot in the first calibration position and press ENTER.");
+    #endif
+    while (!Serial.available()) delay(10);
+    while (Serial.available()) Serial.read(); // Clear buffer
+  
+    // Read IMU and calculate offset for first position
+    offsets.off1 = robot_angle;
+    Serial.print("First offset recorded: "); Serial.println(offsets.off1);
+  
+    calibrating_step = 2;
+  
+    // Calibrate second position (e.g., right side)
+    Serial.println("Place the robot in the second calibration position and press ENTER.");
+    #if (USE_BT)
+      SerialBT.println("Place the robot in the second calibration position and press ENTER.");
+    #endif
+    while (!Serial.available()) delay(10);
+    while (Serial.available()) Serial.read(); // Clear buffer
+  
+    // Read IMU and calculate offset for second position
+    offsets.off2 = robot_angle;
+    Serial.print("Second offset recorded: "); Serial.println(offsets.off2);
+  
+    // Save offsets to EEPROM
+    offsets.ID = 24; // Mark as calibrated
+    EEPROM.put(0, offsets);
+    EEPROM.commit();
+  
+    calibrating = false;
+    calibrated = true;
+    calibrating_step = 0;
+  
+    Serial.println("Calibration complete!");
+    #if (USE_BT)
+      SerialBT.println("Calibration complete!");
+    #endif
+  }
 void setup() {
 
   Serial.begin(115200);
   #if (USE_BT)
-    SerialBT.begin("ESP32Triangle");    // Bluetooth device name
+    SerialBT.begin("ESP32ReactionWheel");    // Bluetooth device name
   #endif  
   
   EEPROM.begin(EEPROM_SIZE);
@@ -199,9 +259,62 @@ void setup() {
   delay(70);
   digitalWrite(BUZZER, LOW);
 }
-
+// Placeholder for angle_calc function
+void angle_calc() {
+    // Read raw accelerometer and gyro data from MPU6050
+    Wire.beginTransmission(MPU6050_ADDR);
+    Wire.write(0x3B); // Starting register for Accel data
+    Wire.endTransmission(false);
+    Wire.requestFrom(MPU6050_ADDR, 6, true);
+    AcX = Wire.read() << 8 | Wire.read();
+    AcY = Wire.read() << 8 | Wire.read();
+    AcZ = Wire.read() << 8 | Wire.read();
+  
+    Wire.beginTransmission(MPU6050_ADDR);
+    Wire.write(0x47); // Starting register for Gyro Z data
+    Wire.endTransmission(false);
+    Wire.requestFrom(MPU6050_ADDR, 2, true);
+    GyZ = Wire.read() << 8 | Wire.read();
+  
+    // Calculate the angle from accelerometer (in degrees)
+    Acc_angle = atan2((float)AcY, (float)AcZ) * 180.0 / PI;
+  
+    // Integrate gyro Z to estimate angle change (degrees)
+    static float last_angle = 0;
+    static unsigned long last_time = 0;
+    unsigned long now = millis();
+    float dt = (now - last_time) / 1000.0;
+    last_time = now;
+  
+    float gyro_rate = (float)GyZ / 131.0; // for 500dps sensitivity
+    if (dt <= 0 || dt > 0.2) dt = 0.01;   // avoid large jumps
+  
+    // Complementary filter
+    robot_angle = Gyro_amount * (last_angle + gyro_rate * dt) + (1.0 - Gyro_amount) * Acc_angle;
+    last_angle = robot_angle;
+  }
+  // Placeholder for batteryVoltage function
+  void batteryVoltage(double voltage) {
+    // Print voltage to Serial and Bluetooth (if enabled)
+    Serial.print("Battery Voltage: ");
+    Serial.println(voltage, 2);
+    #if (USE_BT)
+      SerialBT.print("Battery Voltage: ");
+      SerialBT.println(voltage, 2);
+    #endif
+  
+    // Low voltage warning threshold (adjust as needed)
+    const double LOW_VOLTAGE = 7.0;
+    if (voltage < LOW_VOLTAGE) {
+      // Trigger buzzer warning
+      digitalWrite(BUZZER, HIGH);
+      delay(100);
+      digitalWrite(BUZZER, LOW);
+      delay(100);
+    }
+  }
 void loop() {
-
+    angle_calc();
   currentT = millis();
   
   if (currentT - previousT_1 >= loop_time) {
@@ -310,7 +423,7 @@ void loop() {
     }
     previousT_3 = currentT;
   }
-  
+    batteryVoltage((double)analogRead(VBAT) / bat_divider);
   if (currentT - previousT_2 >= 1500) {
     if (!calibrated && !calibrating) {
       #if (USE_BT)
@@ -318,7 +431,7 @@ void loop() {
       #endif  
       Serial.println("first you need to calibrate the balancing point...");
     }    
-    battVoltage((double)analogRead(VBAT) / bat_divider);
+    batteryVoltage((double)analogRead(VBAT) / bat_divider);
     previousT_2 = currentT;
   }
 }
