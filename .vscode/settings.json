@@ -1,12 +1,8 @@
 {
     "files.associations": {
         "ostream": "cpp",
-<<<<<<< HEAD
         "compare": "cpp",
         "cstdint": "cpp",
         "*.inc": "cpp"
-=======
-        "istream": "cpp"
->>>>>>> 1b5207d (put bmp files back into include and have rudimentary implementation to read data from the icm and store it into a struct)
     }
 }
