@@ -58,6 +58,7 @@ uint32_t usToDuty(int us) {
 void setup() {
   Serial.begin(115200);
   #if (USE_BT)
+    SerialBT.begin("ESP32ReactionWheel");    // Bluetooth device name
     SerialBT.begin("ESP32ReactionWheel");
   #endif  
 
