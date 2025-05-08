@@ -118,26 +118,61 @@ void angle_calc() {
   last_angle = robot_angle;
 }
 
+bool running = true; // Add this global flag at the top of your file
+
 void loop() {
+  // Check for Bluetooth stop command
+  #if (USE_BT)
+  if (SerialBT.available()) {
+    String cmd = SerialBT.readStringUntil('\n');
+    cmd.trim();
+    if (cmd.equalsIgnoreCase("stop")) {
+      running = false;
+      ledcWrite(ESC_PIN, usToDuty(1500)); // Set ESC to neutral
+      Serial.println("Received STOP command. Balancing stopped.");
+      SerialBT.println("Received STOP command. Balancing stopped.");
+    }
+    if (cmd.equalsIgnoreCase("start")) {
+      running = true;
+      Serial.println("Received START command. Balancing resumed.");
+      SerialBT.println("Received START command. Balancing resumed.");
+    }
+  }
+  #endif
+
+  if (!running) {
+    delay(100); // Idle while stopped
+    return;
+  }
+
   angle_calc(); // Update robot_angle and gyroZfilt
 
-  // --- Balancing controller logic ---
-  // Example: simple proportional controller (replace with your own)
-  // Setpoint is 0 degrees (upright)
-  float Kp = 50.0; // Tune this value!
-  float setpoint = 0.0;
-  float error = setpoint - (robot_angle + angle_offset);
+  // --- Auto-balance only if within ±10 degrees ---
+  const float balance_threshold = 10.0; // degrees
+  float current_angle = robot_angle + angle_offset;
 
-  // Optionally add gyro feedback for damping (PD controller)
-  float Kd = 1.0; // Tune this value!
-  float control = Kp * error - Kd * gyroZfilt;
+  int pwmVal = 1500; // Default to neutral
 
-  // Map control output to ESC PWM range (1000–2000us)
-  int pwmVal = map(constrain(control, -12, 12), -12, 12, 1000, 2000);
+  if (abs(current_angle) <= balance_threshold) {
+    // --- Balancing controller logic ---
+    float Kp = 50.0; // Tune this value!
+    float setpoint = 0.0;
+    float error = setpoint - current_angle;
 
-  // Optional: dead zone around neutral
-  const int deadZone = 25;
-  if (abs(pwmVal - 1500) <= deadZone) {
+    // Optionally add gyro feedback for damping (PD controller)
+    float Kd = 1.0; // Tune this value!
+    float control = Kp * error - Kd * gyroZfilt;
+
+    // Map control output to ESC PWM range (1000–2000us)
+    pwmVal = map(constrain(control, -12, 12), -12, 12, 1000, 2000);
+
+    // Optional: dead zone around neutral
+    const int deadZone = 25;
+    if (abs(pwmVal - 1500) <= deadZone) {
+      pwmVal = 1500;
+    }
+  } else {
+    // If tipped too far, set ESC to neutral (stop correcting)
     pwmVal = 1500;
   }
 
@@ -146,12 +181,11 @@ void loop() {
 
   // Debugging
   Serial.print("Angle: ");
-  Serial.print(angle);
+  Serial.print(robot_angle);
   Serial.print(" Gyro: ");
   Serial.print(gyroZfilt);
   Serial.print(" PWM: ");
   Serial.println(pwmVal);
-  Serial.print("\n");
 
   delay(loop_time);
 }
