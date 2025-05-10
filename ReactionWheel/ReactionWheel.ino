@@ -1,151 +1,192 @@
+#include <EEPROM.h>
+#include "BluetoothSerial.h"
+#include <FastLED.h>
 #include <Wire.h>
-#include <ArduinoOTA.h> // For OTA updates
-#define MPU6050 0x68
-#define accSens 0
-#define gyroSens 1
-#define Gyro_amount 0.996
-#define MOTOR 9
-#define DIR 4
 
-float Kp = 100;
-float Ki = 4.8;
-float Kd = 9.7;
-float loop_time = 10;
+#define USE_BT      1
 
-int16_t  AcX_offset = -750;
-int16_t  AcY_offset = 360;
-int16_t  AcZ_offset = 0;
-int16_t  GyZ_offset = 0;
-int32_t  GyZ_offset_sum = 0;
-int16_t AcX, AcY, AcZ, GyZ, gyroZ;
+#define BUZZER      4
+#define VBAT        32
+#define INT_LED     2
 
-float target_angle = 0;
-float current_angle;
-float acc_angle;
-bool vertical = false;
-float errorSum = 0;
-float lastError = 0;
-long current_time, previous_time = 0;
-uint8_t i2cData[14];
+#define ESC_PIN     18   // PWM output pin for ESC signal
+#define ESC_FREQ    50   // 50Hz for RC ESC
+#define ESC_RES     16   // 16-bit resolution
+
+#define MPU6050_ADDR  0x68
+#define EEPROM_SIZE  64
+
+#define LED_PIN      18
+#define NUM_PIXELS   3
+
+CRGB leds[NUM_PIXELS];
+
+#if (USE_BT)
+  BluetoothSerial SerialBT;
+#endif  
+
+int bat_divider = 198;
+
+int16_t  AcX, AcY, AcZ, GyZ;
+float robot_angle, angle_offset, gyroZfilt;
+float Acc_angle;            
+
+bool vertical = false;      
+bool calibrating = false;
+bool calibrated = false;
+int calibrating_step = 1;
+
+float target_voltage = 0;
+float Gyro_amount = 0.996;
+float alpha = 0.3;
+int loop_time = 8;
+
+struct AccOffsetsObj {
+  int ID;
+  int16_t X;
+  int16_t Y;
+  float off1;
+  float off2;
+};
+AccOffsetsObj offsets;
+
+// Helper: microseconds to duty cycle
+uint32_t usToDuty(int us) {
+  return (uint32_t(us) * ((1UL << ESC_RES) - 1)) / 20000;
+}
 
 void setup() {
-    delay(1000);
-    angle_setup();
-    Serial.begin(115200); // Faster debug output
+  Serial.begin(115200);
+  #if (USE_BT)
+    SerialBT.begin("ESP32ReactionWheel");    // Bluetooth device name
+    SerialBT.begin("ESP32ReactionWheel");
+  #endif  
 
-    pinMode(MOTOR, OUTPUT);
-    pinMode(DIR, OUTPUT);
-    analogWrite(MOTOR, 255);
+  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.get(0, offsets);
+  calibrated = (offsets.ID == 24);
 
-    // OTA setup
-    ArduinoOTA.setHostname("esp32-reactionwheel");
-    ArduinoOTA.begin();
+  pinMode(BUZZER, OUTPUT);
+  pinMode(INT_LED, OUTPUT);
+
+  // Setup ESC PWM
+  ledcAttach(ESC_PIN, ESC_FREQ, ESC_RES);
+
+  // Arm ESC at neutral
+  ledcWrite(ESC_PIN, usToDuty(1500));
+  delay(5000); // let ESC arm at neutral
+
+  // ... FastLED and other setup code as before ...
+  Wire.begin();
+  // ... MPU6050 init if needed ...
+  // ... LED startup animation as before ...
+  // angle_setup(); // if you want to calibrate
 }
 
-void loop() {
-    ArduinoOTA.handle(); // Call this as often as possible for responsiveness
-
-    current_time = millis();
-    checkBluetooth();
-    if (current_time - previous_time >= loop_time) {
-        angle_calc();
-        if (vertical) {
-            float error = current_angle - target_angle;
-            errorSum += error;
-            errorSum = constrain(errorSum, -80, 80);
-            float derivative = (error - lastError) / (loop_time/1000);
-            int motor_pwm = constrain(Kp * error + Ki * errorSum + Kd * derivative, -255, 255);
-
-            if (motor_pwm > 0) {
-                digitalWrite(DIR, LOW);
-            } else {
-                digitalWrite(DIR, HIGH);
-            }
-            analogWrite(MOTOR, 1-abs(motor_pwm));
-
-            lastError = error;
-            previous_time = current_time;
-        } else {
-            target_angle = 0;
-            analogWrite(MOTOR, 255);
-            errorSum = 0;
-        }
-    }
-}
-
-// ... rest of your functions remain unchanged ...
-void writeTo(byte device, byte address, byte value) {
-    Wire.beginTransmission(device);
-    Wire.write(address);
-    Wire.write(value);
-    Wire.endTransmission(true);
-}
-
-void angle_setup() {
-    Wire.begin();
-    delay(100);
-    writeTo(MPU6050, 0x6B, 0);
-    writeTo(MPU6050, 0x1C, accSens << 3);
-    writeTo(MPU6050, 0x1B, gyroSens << 3);
-    delay(100);
-
-    for (int i = 0; i < 1024; i++) {
-        angle_calc();
-        GyZ_offset_sum += GyZ;
-        delay(5);
-    }
-    GyZ_offset = GyZ_offset_sum >> 10;
+void setESC(float voltage) {
+  // Map your control output to ESC pulse width (1000-2000us)
+  int pulse_us = map(constrain(voltage, -12, 12), -12, 12, 1000, 2000);
+  ledcWrite(ESC_PIN, usToDuty(pulse_us));
 }
 
 void angle_calc() {
-    Wire.beginTransmission(MPU6050);
-    Wire.write(0x3B);
-    Wire.endTransmission(false);
-    Wire.requestFrom((uint8_t)MPU6050, (size_t)4, (bool)true);
-    AcX = Wire.read() << 8 | Wire.read();
-    AcY = Wire.read() << 8 | Wire.read();
+  Wire.beginTransmission(MPU6050_ADDR);
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU6050_ADDR, 6, true);
+  AcX = Wire.read() << 8 | Wire.read();
+  AcY = Wire.read() << 8 | Wire.read();
+  AcZ = Wire.read() << 8 | Wire.read();
 
-    Wire.beginTransmission(MPU6050);
-    Wire.write(0x47);
-    Wire.endTransmission(false);
-    Wire.requestFrom((uint8_t)MPU6050, (size_t)2, (bool)true);
-    GyZ = Wire.read() << 8 | Wire.read();
+  Wire.beginTransmission(MPU6050_ADDR);
+  Wire.write(0x47);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU6050_ADDR, 2, true);
+  GyZ = Wire.read() << 8 | Wire.read();
 
-    AcX += AcX_offset;
-    AcY += AcY_offset;
-    AcZ += AcZ_offset;
-    GyZ -= GyZ_offset;
+  Acc_angle = atan2((float)AcY, (float)AcZ) * 180.0 / PI;
 
-    current_angle += GyZ * loop_time / 1000 / 65.536;
-    acc_angle = atan2(AcY, -AcX) * 57.2958;
-    current_angle = current_angle * Gyro_amount + acc_angle * (1.0 - Gyro_amount);
+  static float last_angle = 0;
+  static unsigned long last_time = 0;
+  unsigned long now = millis();
+  float dt = (now - last_time) / 1000.0;
+  last_time = now;
 
-    if (abs(current_angle) > 12) vertical = false;
-    if (abs(current_angle) < 0.3) vertical = true;
+  float gyro_rate = (float)GyZ / 131.0;
+  if (dt <= 0 || dt > 0.2) dt = 0.01;
+
+  robot_angle = Gyro_amount * (last_angle + gyro_rate * dt) + (1.0 - Gyro_amount) * Acc_angle;
+  last_angle = robot_angle;
 }
 
-void checkBluetooth(){
-    while (Serial.available()) {
-        int data = Serial.read();
-        if (data == 70) {
-            Kp += 1;
-        }else if(data == 66) {
-            Kp -= 1;
-        }else if(data == 76){
-            Ki -= 0.1;
-        }else if(data == 82){
-            Ki += 0.1;
-        }else if(data == 88){
-            Kd += 0.1;
-        }else if(data == 89){
-            Kd -= 0.1;
-        }
+bool running = true; // Add this global flag at the top of your file
 
-        Serial.print("KP: ");
-        Serial.print(Kp);
-        Serial.print(" KI: ");
-        Serial.print(Ki);
-        Serial.print(" KD: ");
-        Serial.println(Kd);
+void loop() {
+  // Check for Bluetooth stop command
+  #if (USE_BT)
+  if (SerialBT.available()) {
+    String cmd = SerialBT.readStringUntil('\n');
+    cmd.trim();
+    if (cmd.equalsIgnoreCase("stop")) {
+      running = false;
+      ledcWrite(ESC_PIN, usToDuty(1500)); // Set ESC to neutral
+      Serial.println("Received STOP command. Balancing stopped.");
+      SerialBT.println("Received STOP command. Balancing stopped.");
     }
+    if (cmd.equalsIgnoreCase("start")) {
+      running = true;
+      Serial.println("Received START command. Balancing resumed.");
+      SerialBT.println("Received START command. Balancing resumed.");
+    }
+  }
+  #endif
+
+  if (!running) {
+    delay(100); // Idle while stopped
+    return;
+  }
+
+  angle_calc(); // Update robot_angle and gyroZfilt
+
+  // --- Auto-balance only if within +-25 degrees ---
+  const float balance_threshold = 25.0; // degrees
+  float current_angle = robot_angle + angle_offset;
+
+  int pwmVal = 1500; // Default to neutral
+
+  if (abs(current_angle) <= balance_threshold) {
+    // --- Balancing controller logic ---
+    float Kp = 50.0; // Tune this value!
+    float setpoint = 0.0;
+    float error = setpoint - current_angle;
+
+    // Optionally add gyro feedback for damping (PD controller)
+    float Kd = 1.0; // Tune this value!
+    float control = Kp * error - Kd * gyroZfilt;
+
+    // Map control output to ESC PWM range (1000–2000us)
+    pwmVal = map(constrain(control, -12, 12), -12, 12, 1000, 2000);
+
+    // Optional: dead zone around neutral
+    const int deadZone = 25;
+    if (abs(pwmVal - 1500) <= deadZone) {
+      pwmVal = 1500;
+    }
+  } else {
+    // If tipped too far, set ESC to neutral (stop correcting)
+    pwmVal = 1500;
+  }
+
+  // Output to ESC
+  ledcWrite(ESC_PIN, usToDuty(pwmVal));
+
+  // Debugging
+  Serial.print("Angle: ");
+  Serial.print(robot_angle);
+  Serial.print(" Gyro: ");
+  Serial.print(gyroZfilt);
+  Serial.print(" PWM: ");
+  Serial.println(pwmVal);
+
+  delay(loop_time);
 }
