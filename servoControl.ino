@@ -43,9 +43,9 @@ void setup() {
   servoY.attach(yPin, 500, 2400);
   initial_I[0] = initial_angles[0];
   initial_I[1] = initial_angles[1];
-  Kp = 3.3125; //filler value
-  Ki = 0.2; //filler value
-  Kd = 1.3; //filler value
+  Kp = 3.3125; 
+  Ki = 0.2; 
+  Kd = 1.3; 
 }
 
 void loop() {
