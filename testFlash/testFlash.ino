@@ -194,7 +194,7 @@ void setup(){
   //   deleteFile(LittleFS, "/foo.txt"); //Delete the file
   //   testFileIO(LittleFS, "/test.txt"); //Testin
   //   deleteFile(LittleFS, "/test.txt"); //Delete the file
-  readFile(LitteFS, "test.csv");
+  readFile(LittleFS, "/test.csv");
   Serial.println( "Test complete" ); 
 }
 
