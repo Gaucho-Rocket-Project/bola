@@ -147,7 +147,7 @@ void loop() {
 
   angle_calc(); // Update robot_angle and gyroZfilt
 
-  // --- Auto-balance only if within ±10 degrees ---
+  // --- Auto-balance only if within +-25 degrees ---
   const float balance_threshold = 25.0; // degrees
   float current_angle = robot_angle + angle_offset;
 
