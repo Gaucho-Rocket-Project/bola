@@ -8,7 +8,7 @@ def to_cpp_array(name, arr, dtype="double"):
 
 def main():
     df = pl.read_csv(
-        "/home/cheng/Downloads/Rocket/ESP32/testFlash/data/strong_step_test_force.csv",
+        "strong_step_test_force.csv",
         schema_overrides={
             "Time": pl.Float64,
             "Roll": pl.Float64,
