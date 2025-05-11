@@ -1,8 +1,8 @@
 #include <ESP32Servo.h>
-#include <strong_step_test_force.h>
+#include <constant_force.h>
 
 // how many time‐steps do we have?
-static const size_t NUM_SAMPLES = 900;
+static const size_t NUM_SAMPLES = sizeof(t)/sizeof(t[0]);
 
 // which sample are we on?
 size_t sampleIndex = 0;
@@ -89,7 +89,7 @@ void loop() {
     servoY.write(outY);
 
     // 3b) or just print for offline analysis
-    Serial.printf("t=%.2f  roll→%.2f  pitch→%.2f  → outX=%.2f  outY=%.2f\n",
+    Serial.printf("t=%.8f  roll→%.8f  pitch→%.8f  → outX=%.8f  outY=%.8f\n",
                   t[sampleIndex],
                   current_angles[0],
                   current_angles[1],
