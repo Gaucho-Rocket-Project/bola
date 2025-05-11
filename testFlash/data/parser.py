@@ -2,7 +2,7 @@ import polars as pl
 import numpy as np
 
 def to_cpp_array(name, arr, dtype="double"):
-    # Format each value as a decimal (no scientific notation)
+    # .31f is the max precision for float in ESP32 (32-bit limit)
     arr_str = ", ".join(f"{x:.31f}" for x in arr)
     return f"{dtype} {name}[] = {{ {arr_str} }};"
 
