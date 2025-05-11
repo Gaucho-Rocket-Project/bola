@@ -1,5 +1,6 @@
 #include "FS.h"
 #include <LittleFS.h>
+#include "constant_force.h"
 
 #define FORMAT_LITTLEFS_IF_FAILED true
 
@@ -11,35 +12,6 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
       Serial.println("- failed to open directory");
       return;
   }
-
-  Serial.println(":white_check_mark: LittleFS Mounted Successfully");
-  // List files
-  // Serial.println(">> Listing files in root directory:");
-  // File root = LittleFS.open("/");
-  // File file = root.openNextFile();
-  // while (file) {
-  //   Serial.print("File: ");
-  //   Serial.println(file.name());
-  //   file = root.openNextFile();
-  // }
-  // Try to open the ss.csv file
-  // File root = LittleFS.open("/");
-  // while (File file = root.openNextFile()) {
-  //   Serial.printf("Found %s  (%u bytes)\n", file.name(), file.size());
-  //   file.close();
-  // }
-  File csvFile = LittleFS.open("/ss.csv", FILE_READ);
-  if (!csvFile) {
-    Serial.println(":x: Failed to open /ss.csv");
-    return;
-  }
-  Serial.println(">> Contents of /ss.csv:");
-  while (csvFile.available()) {
-    String line = csvFile.readStringUntil('\n');
-    Serial.println(line);
-  }
-  csvFile.close();
-
   if(!root.isDirectory()){
       Serial.println(" - not a directory");
       return;
@@ -61,7 +33,6 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
       }
       file = root.openNextFile();
   }
-
 }
 
 void createDir(fs::FS &fs, const char * path){
@@ -148,8 +119,8 @@ void deleteFile(fs::FS &fs, const char * path){
   }
 }
 
-void ssFileIO(fs::FS &fs, const char * path){
-  Serial.printf("ssing file I/O with %s\r\n", path);
+void testFileIO(fs::FS &fs, const char * path){
+  Serial.printf("Testing file I/O with %s\r\n", path);
 
   static uint8_t buf[512];
   size_t len = 0;
@@ -222,11 +193,10 @@ void setup(){
   //   renameFile(LittleFS, "/hello.txt", "/foo.txt"); //Rename the previous file
   //   readFile(LittleFS, "/foo.txt"); //Read the file with the new name
   //   deleteFile(LittleFS, "/foo.txt"); //Delete the file
-  //   ssFileIO(LittleFS, "/ss.txt"); //ssin
-  //   deleteFile(LittleFS, "/ss.txt"); //Delete the file
-  readFile(LittleFS, "/ss.csv");
-  Serial.println();
-  Serial.println( "ss complete" ); 
+  //   testFileIO(LittleFS, "/test.txt"); //Testin
+  //   deleteFile(LittleFS, "/test.txt"); //Delete the file
+  readFile(LittleFS, "/test.csv");
+  Serial.println( "Test complete" ); 
 }
 
 void loop(){
