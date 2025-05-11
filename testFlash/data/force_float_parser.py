@@ -8,7 +8,7 @@ def to_cpp_array(name, arr, dtype="double"):
 def main():
     # Force all columns to be Float64
     df = pl.read_csv(
-        "/home/cheng/Downloads/Rocket/ESP32/testFlash/data/servo_test_data_-_strong_step_test_force.csv", # Use your actual file path (FULL PATH REQUIRED!)
+        "/ESP32/testFlash/data/servo_test_data_-_strong_step_test_force.csv", # Use your actual file path (FULL PATH REQUIRED!)
         dtypes={
             "Time": pl.Float64,
             "Roll": pl.Float64,
