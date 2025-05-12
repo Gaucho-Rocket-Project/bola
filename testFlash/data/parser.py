@@ -3,12 +3,16 @@ import numpy as np
 
 def to_cpp_array(name, arr, dtype="double"):
     # .31f is the max precision for float in ESP32 (32-bit limit)
-    arr_str = ", ".join(f"{x:.31f}" for x in arr)
+    if name == "time":
+        arr_str = ", ".join(f"{x:.2f}" for x in arr)
+        dtype = "float"
+    else:
+        arr_str = ", ".join(f"{x:.31f}" for x in arr)
     return f"{dtype} {name}[] = {{ {arr_str} }};"
 
 def main():
     df = pl.read_csv(
-        "strong_step_test_force.csv",
+        "/home/cheng/Downloads/Rocket/ESP32/testFlash/data/strong_step_test_force.csv",
         schema_overrides={
             "Time": pl.Float64,
             "Roll": pl.Float64,
