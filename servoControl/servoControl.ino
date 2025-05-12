@@ -1,5 +1,5 @@
 #include <ESP32Servo.h>
-#include <constant_force.h>
+#include <strong_step_test_force.h>
 
 // how many time‐steps do we have?
 static const size_t NUM_SAMPLES = sizeof(t)/sizeof(t[0]);
@@ -13,9 +13,9 @@ const float TIME_STEP = 0.01;
 Servo servoX;
 Servo servoY;
 
-//Servo pins
+//Servo pins (BASED OFF GPIO numbers)
 int xPin = 13;
-int yPin = 14;
+int yPin = 12;
 
 //data struct (not used yet)
 struct testStruct{
@@ -44,9 +44,28 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
   servoX.setPeriodHertz(50);  // typical servo frequency
-  servoX.attach(xPin, 500, 2400); // pin, min/max pulse width in µs
+  int test1 = servoX.attach(xPin, 500, 2400); // pin, min/max pulse width in µs
   servoY.setPeriodHertz(50);
-  servoY.attach(yPin, 500, 2400);
+  int test2 = servoY.attach(yPin, 500, 2400);
+  if(test1 == 0){
+    Serial.println("X Servo didn't attach");
+  }
+  else{
+    Serial.println("Attached X Servo");
+  }
+  if(test2 == 0){
+    Serial.println("Y Servo didn't attach");
+  }
+  else{
+    Serial.println("Attached Y Servo");
+  }
+  servoX.write(90);
+  delay(500);
+  servoX.write(0);
+  delay(500);
+  servoY.write(90);
+  delay(500);
+  servoY.write(0);
   // start integral terms at zero
   initial_I[0] = initial_I[1] = 0.0f;
 
