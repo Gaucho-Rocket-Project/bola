@@ -144,7 +144,7 @@ float alpha(){
   float Dx = calculateD(initial_angles[0],current_angles[0]);
   //calculate PID sum
   float pid = Kp * current_angles[0] + Ki * current_I[0] + Kd * Dx;
-  return apply_Compensation(pid, 1.0);
+  return applyCompensation(pid, 1.0);
 }
 
 float beta(){
@@ -154,7 +154,7 @@ float beta(){
   float Dy = calculateD(initial_angles[1],current_angles[1]);
   //calculate PID sum
   float pid = Kp * current_angles[1] + Ki * current_I[1] + Kd * Dy;
-  return apply_Compensation(pid, 1.0);
+  return applyCompensation(pid, 1.0);
 }
 
 float calculateI(float I0, float current_angle){
