@@ -1,5 +1,5 @@
 #include <ESP32Servo.h>
-#include <strong_step_test_force.h>
+#include <weak_step_test_force.h>
 
 // how many time‐steps do we have?
 static const size_t NUM_SAMPLES = sizeof(t)/sizeof(t[0]);
@@ -59,9 +59,17 @@ void setup() {
   else{
     Serial.println("Attached Y Servo");
   }
-  servoX.write(90);
+  servoX.write(96);
   delay(500);
+<<<<<<< HEAD
   servoY.write(180);
+=======
+  servoX.write(0);
+  delay(500);
+  servoY.write(86);
+  delay(500);
+  servoY.write(0);
+>>>>>>> 2e279e02748dc9bba68f5980d861638a7a78372a
   // start integral terms at zero
   initial_I[0] = initial_I[1] = 0.0f;
 
@@ -96,8 +104,8 @@ void loop() {
     current_angles[1] = pitch[sampleIndex];
 
     // 2) compute PID outputs
-    float outX = alpha();
-    float outY = beta();
+    float outX = alpha()+96;
+    float outY = beta()+86;
 
     // 3a) actually drive servos
     servoX.write(outX);
