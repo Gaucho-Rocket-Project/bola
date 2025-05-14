@@ -1,4 +1,4 @@
-const int escPin  = 18;  // GPIO pin connected to ESC signal
+const int escPin  = 27;  // GPIO pin connected to ESC signal
 const int escFreq = 50;  // 50 Hz standard for RC/ESC
 const int escRes  = 16;  // 16-bit resolution
 
