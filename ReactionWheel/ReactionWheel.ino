@@ -9,14 +9,14 @@
 #define VBAT        32
 #define INT_LED     2
 
-#define ESC_PIN     18   // PWM output pin for ESC signal
+#define ESC_PIN     14   // PWM output pin for ESC signal
 #define ESC_FREQ    50   // 50Hz for RC ESC
 #define ESC_RES     16   // 16-bit resolution
 
 #define MPU6050_ADDR  0x68
 #define EEPROM_SIZE  64
 
-#define LED_PIN      18
+#define LED_PIN      14
 #define NUM_PIXELS   3
 
 CRGB leds[NUM_PIXELS];
