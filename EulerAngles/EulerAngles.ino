@@ -52,6 +52,7 @@ ICM_20948_SPI imu;
 uint32_t usToDuty(int us) {
   return (uint32_t)us * ((1UL << escRes) - 1) / 20000;
 }
+
 static float lpf(float prev_lpf_val, float current_measurement, float beta) {
   return beta * current_measurement + (1.0f - beta) * prev_lpf_val;
 }
@@ -61,7 +62,9 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
   Serial.println("Setup starting...");
+
   SPI.begin(SPI_SCLK, SPI_MISO, SPI_MOSI);
+
   Serial.println("Initializing IMU DMP...");
   while (imu.begin(CS_PIN, SPI) != ICM_20948_Stat_Ok) {
     Serial.println("IMU.begin failed; retrying...");
