@@ -132,7 +132,14 @@ void loop() {
 }
 
 
-//DEFINTIONS OF HELPER FUNCTIONS
+//DEFINITIONS OF HELPER FUNCTIONS
+
+float applyCompensation(float output, float threshold) {
+  if (fabs(output) < threshold && output != 0) {
+    return (output > 0) ? threshold : -threshold;
+  }
+  return output;
+}
 
 float alpha(){
   //calculate current integration value
@@ -140,7 +147,8 @@ float alpha(){
   //calculate current derivative value
   float Dx = calculateD(initial_angles[0],current_angles[0]);
   //calculate PID sum
-  return Kp * current_angles[0] + Ki * current_I[0] + Kd * Dx;
+  float pid = Kp * current_angles[0] + Ki * current_I[0] + Kd * Dx;
+  return applyCompensation(pid, 1.0);
 }
 
 float beta(){
@@ -149,7 +157,8 @@ float beta(){
   //calculate current derivative value
   float Dy = calculateD(initial_angles[1],current_angles[1]);
   //calculate PID sum
-  return Kp * current_angles[1] + Ki * current_I[1] + Kd * Dy;
+  float pid = Kp * current_angles[1] + Ki * current_I[1] + Kd * Dy;
+  return applyCompensation(pid, 1.0);
 }
 
 float calculateI(float I0, float current_angle){
