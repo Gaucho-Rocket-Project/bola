@@ -130,8 +130,8 @@ void loop() {
     // compute PID for each axis, map to [60..120]° around 90
     float outX = constrain(pidTVC(0),-30,30) + 90;
     float outY = constrain(pidTVC(1),-30,30) + 90;
-    outX = applyCompensation(outX, 1.0);
-    outY = applyCompensation(outY, 1.0);
+    outX = applyCompensation(outX, 2.5);
+    outY = applyCompensation(outY, 0.0);
 
     servoX.write(outX);
     servoY.write(outY);
@@ -162,5 +162,5 @@ void loop() {
     ledcWrite(escPin, usToDuty(pulse));
   }
 
-  delay(10);  // ≈100 Hz
+  delay(18);  // ≈100 Hz
 }
