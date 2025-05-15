@@ -128,8 +128,10 @@ void loop() {
     current_ang[1] = asin(t2)*180/PI;                 // pitch
 
     // compute PID for each axis, map to [60..120]° around 90
-    float outX = constrain(applyCompensation((pidTVC(0),-30,30) + 90), 1.0);
-    float outY = constrain(applyCompensation((pidTVC(1),-30,30) + 90), 1.0);
+    float outX = constrain(pidTVC(0),-30,30) + 90;
+    float outY = constrain(pidTVC(1),-30,30) + 90;
+    outX = applyCompensation(outX, 1.0);
+    outY = applyCompensation(outY, 1.0);
 
     servoX.write(outX);
     servoY.write(outY);
