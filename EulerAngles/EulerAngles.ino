@@ -31,6 +31,7 @@ const float Kp_tvc = 3.3125, Ki_tvc = 0.2, Kd_tvc = 1.5;
 const float TIME_STEP = 0.01;
 float initial_I[2] = {0,0}, current_I[2];
 float initial_ang[2] = {0,0}, current_ang[2];
+const float tvc_deadzone = 5.0;
 
 // --- IMU object ---
 ICM_20948_SPI imu;
@@ -126,17 +127,33 @@ void loop() {
     double t2 = 2*(q0*q3 - q1*q2);
     t2 = constrain(t2,-1,1);
     current_ang[1] = asin(t2)*180/PI;                 // pitch
+    
+    bool rollOK  = fabs(current_ang[0]) < TVC_DEADZONE_DEG;
+    bool pitchOK = fabs(current_ang[1]) < TVC_DEADZONE_DEG;
 
-    // compute PID for each axis, map to [60..120]° around 90
-    float outX = constrain(pidTVC(0),-30,30) + 90;
-    float outY = constrain(pidTVC(1),-30,30) + 90;
-    outX = applyCompensation(outX, 2.5);
-    outY = applyCompensation(outY, 0.0);
+    if (rollOK)  {                // keep servo centred and stop I term
+      servoX.write(90);
+      current_I[0] = 0;
+    }
+    if (pitchOK) {
+      servoY.write(90);
+      current_I[1] = 0;
+    }
 
-    servoX.write(outX);
-    servoY.write(outY);
+    if (!rollOK || !pitchOK) {    // only run PID if at least one axis
+                                   // is outside the dead-zone
+      float outX = constrain(pidTVC(0),-30,30) + 90;
+      float outY = constrain(pidTVC(1),-30,30) + 90;
 
-    // update I/D state
+      outX = applyCompensation(outX, 2.5);
+      outY = applyCompensation(outY, 0.0);
+
+      if (!rollOK)  servoX.write(outX);
+      if (!pitchOK) servoY.write(outY);
+    }
+    /* ================================================== */
+
+    // Update I/D state AFTER the decision
     for (int i=0; i<2; i++) {
       initial_I[i]   = current_I[i];
       initial_ang[i] = current_ang[i];
