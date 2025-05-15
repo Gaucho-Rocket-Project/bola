@@ -3,7 +3,11 @@ import numpy as np
 
 def to_cpp_array(name, arr, dtype="double"):
     # .31f is the max precision for float in ESP32 (32-bit limit)
-    arr_str = ", ".join(f"{x:.31f}" for x in arr)
+    if name == "time":
+        arr_str = ", ".join(f"{x:.2f}" for x in arr)
+        dtype = "float"
+    else:
+        arr_str = ", ".join(f"{x:.31f}" for x in arr)
     return f"{dtype} {name}[] = {{ {arr_str} }};"
 
 def main():
@@ -26,7 +30,7 @@ def main():
         arr = df[col].to_numpy()
         dtype = "float" if col == "Time" else "double"
         arrays.append(to_cpp_array(col.lower().replace(" ", "_"), arr, dtype))
-    with open("strong_step_test_force.h", "w") as f:
+    with open("strong_step_test_force.h", "w") as f: # CHANGE OUTPUT FILE NAME!
         f.write(header)
         for arr in arrays:
             f.write(arr + "\n")
