@@ -114,52 +114,59 @@ void setup() {
 
 // --- Main loop ---
 void loop() {
+  // 1) TVC from DMP quaternions
   icm_20948_DMP_data_t d;
   if ( imu.readDMPdataFromFIFO(&d) == ICM_20948_Stat_Ok &&
-       (d.header & DMP_header_bitmap_Quat6) )
-  {
-      /* quaternion … → roll / pitch (deg) */
-      ...
-      float roll  = atan2(t0,t1)*RAD_TO_DEG;
-      float pitch = asin(t2       )*RAD_TO_DEG;
+       (d.header & DMP_header_bitmap_Quat6) ) {
 
-      /* ------------ low-pass the angles -------------------- */
-      static float rollLP  = 0, pitchLP = 0;
-      rollLP  = lpf(rollLP , roll );
-      pitchLP = lpf(pitchLP, pitch);
+    // extract normalized quaternion
+    double q1 = double(d.Quat6.Data.Q1)/1073741824.0;
+    double q2 = double(d.Quat6.Data.Q2)/1073741824.0;
+    double q3 = double(d.Quat6.Data.Q3)/1073741824.0;
+    double q0 = sqrt(1-(q1*q1+q2*q2+q3*q3));
 
-      /* ------------ PID, real Δt --------------------------- */
-      unsigned long now = micros();
-      float dt = (tPrev==0) ? 0.01 : (now-tPrev)*1e-6; // s
-      tPrev = now;
+    // to Euler roll/pitch
+    double t0 = 2*(q0*q2 + q1*q3);
+    double t1 = 1-2*(q2*q2 + q3*q3);
+    // ... Euler angle calculation ...
+    current_ang[0] = atan2(t0,t1)*180.0/PI;
+    current_ang[1] = asin(t2)*180.0/PI;
 
-      errRP[0] = 0 - rollLP;              // target is 0°
-      errRP[1] = 0 - pitchLP;
+    bool roll_in_deadzone  = fabs(current_ang[0]) < tvc_deadzone;
+    bool pitch_in_deadzone = fabs(current_ang[1]) < tvc_deadzone;
 
-      for (int ax=0; ax<2; ++ax)
-      {
-        bool inside = fabs(errRP[ax]) < TVC_DEADZONE_DEG;
+    float final_servo_x_angle = 90.0f;
+    float final_servo_y_angle = 90.0f;
 
-        if (inside)            // dead-zone
-        {
-          if (ax==0) servoX.write(90);
-          else       servoY.write(90);
-          errI[ax] = 0;        // anti wind-up
-          prevErr[ax] = errRP[ax];
-          continue;
-        }
+    if (roll_in_deadzone) {
+        // Roll is in deadzone, servo to neutral, reset its integral state for next time
+        initial_I[0] = 0; // Or current_I[0] = 0; then initial_I[0] = current_I[0] later
+        current_I[0] = 0; // Ensure it's zero for this step and for state update
+    } else {
+        // Roll is active
+        float pid_corr_x = pidTVC(0); // pidTVC will update current_I[0]
+        pid_corr_x = applyCompensation(pid_corr_x, 2.5f); // Apply compensation if needed
+        final_servo_x_angle = constrain(pid_corr_x, -30.0f, 30.0f) + 90.0f;
+    }
+    servoX.write(static_cast<int>(round(final_servo_x_angle)));
 
-        errI[ax] += errRP[ax] * dt;                    // integral
-        float d   = (dt>0) ? (errRP[ax]-prevErr[ax])/dt : 0; // derivative
-        prevErr[ax] = errRP[ax];
 
-        float u = Kp_tvc*errRP[ax] + Ki_tvc*errI[ax] + Kd_tvc*d;
-        u = constrain(u, -30, 30);                     // ±30° travel
+    if (pitch_in_deadzone) {
+        initial_I[1] = 0;
+        current_I[1] = 0;
+    } else {
+        // Pitch is active
+        float pid_corr_y = pidTVC(1); // pidTVC will update current_I[1]
+        pid_corr_y = applyCompensation(pid_corr_y, 0.0f);
+        final_servo_y_angle = constrain(pid_corr_y, -30.0f, 30.0f) + 90.0f;
+    }
+    servoY.write(static_cast<int>(round(final_servo_y_angle)));
 
-        int cmd = 90 + round(u);
-        if (ax==0) servoX.write(cmd);
-        else       servoY.write(cmd);
-      }
+    // Update I/D state AFTER the decision
+    for (int i=0; i<2; i++) {
+      initial_I[i]   = current_I[i]; // current_I[i] would have been set to 0 if in deadzone, or calculated if active
+      initial_ang[i] = current_ang[i];
+    }
   }
 
   // 2) Reaction-wheel yaw‐rate PID
@@ -168,8 +175,14 @@ void loop() {
     float yawRate = imu.gyrZ();      // °/s
     float target  = 0.0;
     unsigned long now = millis();
-    float dt = (now - prevTime) / 1000.0;
+    unsigned long now = millis();
+    float dt_rw = (now - prevTime) / 1000.0f;
+    if (dt_rw <= 0.0001f) { // Check for too small or zero dt
+        dt_rw = TIME_STEP; // Fallback to a nominal dt
+    }
     prevTime = now;
+    // ...
+    float deriv = (err - prevError) / dt_rw;
 
     float err = target - yawRate;
     integral += err * dt;
