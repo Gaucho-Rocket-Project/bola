@@ -61,11 +61,15 @@ void setup() {
   }
   servoX.write(96);
   delay(500);
+<<<<<<< HEAD
+  servoY.write(180);
+=======
   servoX.write(0);
   delay(500);
   servoY.write(86);
   delay(500);
   servoY.write(0);
+>>>>>>> 2e279e02748dc9bba68f5980d861638a7a78372a
   // start integral terms at zero
   initial_I[0] = initial_I[1] = 0.0f;
 
