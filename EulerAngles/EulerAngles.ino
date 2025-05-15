@@ -127,9 +127,9 @@ void loop() {
     double t2 = 2*(q0*q3 - q1*q2);
     t2 = constrain(t2,-1,1);
     current_ang[1] = asin(t2)*180/PI;                 // pitch
-    
-    bool rollOK  = fabs(current_ang[0]) < TVC_DEADZONE_DEG;
-    bool pitchOK = fabs(current_ang[1]) < TVC_DEADZONE_DEG;
+
+    bool rollOK  = fabs(current_ang[0]) < tvc_deadzone;
+    bool pitchOK = fabs(current_ang[1]) < tvc_deadzone;
 
     if (rollOK)  {                // keep servo centred and stop I term
       servoX.write(90);
@@ -179,5 +179,5 @@ void loop() {
     ledcWrite(escPin, usToDuty(pulse));
   }
 
-  delay(18);  // ≈100 Hz
+  delay(10);  // ≈100 Hz
 }
