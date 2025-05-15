@@ -32,7 +32,7 @@ const float Kp_tvc = 3.3125f, Ki_tvc = 0.2f, Kd_tvc = 1.3f;
 const float TIME_STEP = 0.01f; // Target loop time in seconds (for 100Hz)
 float initial_I[2] = {0.0f, 0.0f}, current_I[2]; // current_I is updated by pidTVC
 float initial_ang[2] = {0.0f, 0.0f}, current_ang[2]; // current_ang is the error (actual angle reading)
-const float deadzone = 5.0f; // Deadzone in degrees for TVC activation
+const float deadzone = 1.0f; // Deadzone in degrees for TVC activation
 
 // --- IMU object ---
 ICM_20948_SPI imu;
@@ -180,7 +180,7 @@ void loop() {
         current_I[0] = initial_I[0];       // Prevent integral windup by not accumulating I-term this step
       } else {
         // Outside deadzone: apply compensation and calculate servo angle
-        float compensated_pid_x = applyCompensation(pid_x_correction, 2.5f);
+        float compensated_pid_x = applyCompensation(pid_x_correction, 0.5f);
         servo_x_target_angle_float = constrain(compensated_pid_x, -30.0f, 30.0f) + 90.0f;
       }
       servoX.write(static_cast<int>(round(servo_x_target_angle_float)));
@@ -191,7 +191,7 @@ void loop() {
         current_I[1] = initial_I[1];       // Prevent integral windup
       } else {
         // Outside deadzone: apply compensation (threshold 0.0f for Y does nothing here)
-        float compensated_pid_y = applyCompensation(pid_y_correction, 0.0f); 
+        float compensated_pid_y = applyCompensation(pid_y_correction, 5.0f); 
         servo_y_target_angle_float = constrain(compensated_pid_y, -30.0f, 30.0f) + 90.0f;
       }
       servoY.write(static_cast<int>(round(servo_y_target_angle_float)));
