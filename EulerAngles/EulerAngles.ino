@@ -32,7 +32,7 @@ const float Kp_tvc = 3.3125f, Ki_tvc = 0.2f, Kd_tvc = 1.3f;
 const float TIME_STEP = 0.01f; // Target loop time in seconds (for 100Hz)
 float initial_I[2] = {0.0f, 0.0f}, current_I[2]; // current_I is updated by pidTVC
 float initial_ang[2] = {0.0f, 0.0f}, current_ang[2]; // current_ang is the error (actual angle reading)
-const float deadzone = 1.0f; // Deadzone in degrees for TVC activation
+const float deadzone = 2.0f; // Deadzone in degrees for TVC activation
 
 // --- IMU object ---
 ICM_20948_SPI imu;
@@ -97,9 +97,9 @@ void setup() {
   // Set DMP Output Data Rate (ODR) for Quat6 (Game Rotation Vector)
   // DMP ODR for Quat6 = DMP_Sample_Rate / (1 + reg_val)
   // Assuming DMP_Sample_Rate is 225Hz (typical with DLPF enabled for gyro)
-  // reg_val = 0 -> 225Hz
-  // reg_val = 1 -> 112.5Hz (closer to 100Hz target loop rate / TIME_STEP = 0.01s)
-  // reg_val = 2 -> 75Hz
+  reg_val = 0 -> 50Hz
+  reg_val = 1 -> 50Hz (closer to 100Hz target loop rate / TIME_STEP = 0.01s)
+  reg_val = 2 -> 50Hz
   if (imu.setDMPODRrate(DMP_ODR_Reg_Quat6, 1) != ICM_20948_Stat_Ok) { Serial.println("FATAL: setDMPODRrate failed!"); while(1); }
   Serial.println("setDMPODRrate successful (target ~112.5Hz for Quat6).");
 
