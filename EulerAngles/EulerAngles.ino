@@ -31,8 +31,7 @@ const float Kp_tvc = 3.3125, Ki_tvc = 0.2, Kd_tvc = 1.5;
 const float TIME_STEP = 0.01;
 float initial_I[2] = {0,0}, current_I[2];
 float initial_ang[2] = {0,0}, current_ang[2];
-const float tvc_deadzone = 1.0;
-const float LPF_BETA         = 0.2;     // 0…1  (1 = no filtering)
+const float tvc_deadzone = 2.0;
 
 // --- IMU object ---
 ICM_20948_SPI imu;
@@ -128,43 +127,40 @@ void loop() {
     // to Euler roll/pitch
     double t0 = 2*(q0*q2 + q1*q3);
     double t1 = 1-2*(q2*q2 + q3*q3);
-    // ... Euler angle calculation ...
-    current_ang[0] = atan2(t0,t1)*180.0/PI;
-    current_ang[1] = asin(t2)*180.0/PI;
+    current_ang[0] = atan2(t0,t1)*180/PI;              // roll
 
-    bool roll_in_deadzone  = fabs(current_ang[0]) < tvc_deadzone;
-    bool pitch_in_deadzone = fabs(current_ang[1]) < tvc_deadzone;
+    double t2 = 2*(q0*q3 - q1*q2);
+    t2 = constrain(t2,-1,1);
+    current_ang[1] = asin(t2)*180/PI;                 // pitch
 
-    float final_servo_x_angle = 90.0f;
-    float final_servo_y_angle = 90.0f;
+    bool rollOK  = fabs(current_ang[0]) < tvc_deadzone;
+    bool pitchOK = fabs(current_ang[1]) < tvc_deadzone;
 
-    if (roll_in_deadzone) {
-        // Roll is in deadzone, servo to neutral, reset its integral state for next time
-        initial_I[0] = 0; // Or current_I[0] = 0; then initial_I[0] = current_I[0] later
-        current_I[0] = 0; // Ensure it's zero for this step and for state update
-    } else {
-        // Roll is active
-        float pid_corr_x = pidTVC(0); // pidTVC will update current_I[0]
-        pid_corr_x = applyCompensation(pid_corr_x, 2.5f); // Apply compensation if needed
-        final_servo_x_angle = constrain(pid_corr_x, -30.0f, 30.0f) + 90.0f;
+    if (rollOK)  {                // keep servo centred and stop I term
+      servoX.write(90);
+      current_I[0] = 0;
     }
-    servoX.write(static_cast<int>(round(final_servo_x_angle)));
-
-
-    if (pitch_in_deadzone) {
-        initial_I[1] = 0;
-        current_I[1] = 0;
-    } else {
-        // Pitch is active
-        float pid_corr_y = pidTVC(1); // pidTVC will update current_I[1]
-        pid_corr_y = applyCompensation(pid_corr_y, 0.0f);
-        final_servo_y_angle = constrain(pid_corr_y, -30.0f, 30.0f) + 90.0f;
+    if (pitchOK) {
+      servoY.write(90);
+      current_I[1] = 0;
     }
-    servoY.write(static_cast<int>(round(final_servo_y_angle)));
+
+    if (!rollOK || !pitchOK) {    // only run PID if at least one axis
+                                   // is outside the dead-zone
+      float outX = constrain(pidTVC(0),-30,30) + 90;
+      float outY = constrain(pidTVC(1),-30,30) + 90;
+
+      outX = applyCompensation(outX, 2.5);
+      outY = applyCompensation(outY, 0.0);
+
+      if (!rollOK)  servoX.write(outX);
+      if (!pitchOK) servoY.write(outY);
+    }
+    /* ================================================== */
 
     // Update I/D state AFTER the decision
     for (int i=0; i<2; i++) {
-      initial_I[i]   = current_I[i]; // current_I[i] would have been set to 0 if in deadzone, or calculated if active
+      initial_I[i]   = current_I[i];
       initial_ang[i] = current_ang[i];
     }
   }
@@ -175,14 +171,8 @@ void loop() {
     float yawRate = imu.gyrZ();      // °/s
     float target  = 0.0;
     unsigned long now = millis();
-    unsigned long now = millis();
-    float dt_rw = (now - prevTime) / 1000.0f;
-    if (dt_rw <= 0.0001f) { // Check for too small or zero dt
-        dt_rw = TIME_STEP; // Fallback to a nominal dt
-    }
+    float dt = (now - prevTime) / 1000.0;
     prevTime = now;
-    // ...
-    float deriv = (err - prevError) / dt_rw;
 
     float err = target - yawRate;
     integral += err * dt;
