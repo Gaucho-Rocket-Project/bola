@@ -58,6 +58,13 @@ float pidTVC(int idx) {
     return Kp_tvc*current_ang[1] + Ki_tvc*current_I[1] + Kd_tvc*D;
 }
 
+float applyCompensation(float output, float threshold) {
+  if (fabs(output) < threshold && output != 0) {
+    return (output > 0) ? threshold : -threshold;
+  }
+  return output;
+}
+
 // --- Setup ---
 void setup() {
   Serial.begin(115200);
@@ -121,8 +128,8 @@ void loop() {
     current_ang[1] = asin(t2)*180/PI;                 // pitch
 
     // compute PID for each axis, map to [60..120]° around 90
-    float outX = constrain(pidTVC(0),-30,30) + 90;
-    float outY = constrain(pidTVC(1),-30,30) + 90;
+    float outX = constrain(applyCompensation((pidTVC(0),-30,30) + 90), 1.0);
+    float outY = constrain(applyCompensation((pidTVC(1),-30,30) + 90), 1.0);
 
     servoX.write(outX);
     servoY.write(outY);
