@@ -27,7 +27,7 @@ float prevError = 0, integral = 0;
 unsigned long prevTime = 0;
 
 // --- PID constants for TVC (roll/pitch) ---
-const float Kp_tvc = 3.3125, Ki_tvc = 0.2, Kd_tvc = 1.3;
+const float Kp_tvc = 3.3125, Ki_tvc = 0.2, Kd_tvc = 1.5;
 const float TIME_STEP = 0.01;
 float initial_I[2] = {0,0}, current_I[2];
 float initial_ang[2] = {0,0}, current_ang[2];
@@ -100,7 +100,7 @@ void setup() {
   ledcAttach(escPin, escFreq, escRes);
   // arm ESC neutral
   ledcWrite(escPin, usToDuty(1500));
-  delay(5000);
+  delay(50);
 
   prevTime = millis();
 }
