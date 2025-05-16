@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include <ESP32Servo.h>
 #include "ICM_20948.h"
+#include "BluetoothSerial.h"
 
 // --- SPI pins for VSPI (default) ---
 #define SPI_SCLK 18
@@ -60,8 +61,12 @@ float pidTVC(int idx) {
 
 // Globals
 
+// Bluetooth
+BluetoothSerial SerialBT;
+char btCmd;
+bool launchSequence = false;  // main logic flag
+
 // Step 1 and 2 Globals
-float current_ang[2];   // roll, pitch
 float yawRate;
 const float CRITICAL_ANGLE = 45.0;  // Can be changed
 
@@ -71,6 +76,7 @@ unsigned long   lastMotorTime = 0,
 const int       legPin = 14;           // leg pin
 
 // Function Declarations
+void handleBT(); // Bluetooth Handling
 void readAngle(); // Step 1
 bool checkCriticalAngle(); // Step 2 (I'm not completely sure what this is)
 void computeAndWritePID(); // Step 3 and 4
@@ -103,6 +109,11 @@ void setup() {
   }
   Serial.println("ICM-20948 DMP ready");
 
+  // --- Bluetooth ---
+  SerialBT.begin("Esp32-BT");
+  Serial.println("Bluetooth up: device name = Esp32-BT");
+
+
   // TVC servos
   servoX.setPeriodHertz(50);
   servoY.setPeriodHertz(50);
@@ -122,6 +133,13 @@ void setup() {
 }
 
 void loop() {
+  handleBT();
+
+  if (!launchSequence) {
+    delay(50);
+    return;
+  }
+
   // read the angle
   readAngle();
 
@@ -142,7 +160,7 @@ void loop() {
 
   computeAndWritePID();
 
-  // rab the current timestamp
+  // grab the current timestamp
   unsigned long now = readTime();
 
   // spin the motor
@@ -158,6 +176,22 @@ void loop() {
 }
 
 // ===== FUNCTION DEFINITIONS =====
+
+void handleBT() {
+  if (SerialBT.available()) {
+    btCmd = SerialBT.read();
+    switch (btCmd) {
+      case '1':
+        Serial.println("BT: start launch sequence");
+        launchSequence = true;
+        break;
+      case '0':
+        Serial.println("BT: stop launch sequence");
+        launchSequence = false;
+        break;
+    }
+  }
+}
 
 void readAngle() {
   icm_20948_DMP_data_t d;
