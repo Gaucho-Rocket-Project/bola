@@ -47,6 +47,7 @@ bool tvc_system_active = true;                 // True if TVC is allowed to oper
 
 // --- IMU object ---
 ICM_20948_SPI imu;
+
 // --- Helpers ---
 uint32_t usToDuty(int us) {
   return (uint32_t)us * ((1UL << escRes) - 1) / 20000;
@@ -95,6 +96,7 @@ void setup() {
   prevTime_rw_micros = micros();
   Serial.println("Setup complete.");
 }
+
 // --- Main loop ---
 void loop() {
   unsigned long loop_start_micros = micros();
