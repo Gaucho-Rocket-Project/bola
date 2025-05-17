@@ -12,7 +12,8 @@
 #define SPI_SCLK 18
 #define SPI_MISO 19
 #define SPI_MOSI 23
-#define CS_PIN    5  // Chip‐select for ICM-20948
+#define CS_PIN 5 // Chip‐select for ICM-20948
+
 // --- Reaction‐wheel ESC on GPIO27 ---
 const int  escPin  = 27;
 const int  escFreq = 50;  // 50 Hz for typical ESC PWM
@@ -61,14 +62,15 @@ const float tvc_deadzone = 2.0f; // Deadzone in degrees for TVC activation
 const float LPF_BETA     = 0.2f; // LPF constant (lower = more smoothing, more lag)
 
 // Variables for the LPF-based TVC PID
-float current_roll_lpf  = 0.0f;
+float current_roll_lpf = 0.0f;
 float current_pitch_lpf = 0.0f;
-float tvc_error_integral[2] = {0.0f, 0.0f}; // [0] for roll, [1] for pitch
-float tvc_prev_error[2]     = {0.0f, 0.0f};
+float tvc_error_integral[2] = {0.0f, 0.0f};
+float tvc_prev_error[2] = {0.0f, 0.0f};
 unsigned long tvc_prev_time_micros = 0;
 
 // --- IMU object ---
 ICM_20948_SPI imu;
+
 // --- Helpers ---
 uint32_t usToDuty(int us) {
   return (uint32_t)us * ((1UL << escRes) - 1) / 20000;
@@ -110,17 +112,13 @@ void setup() {
     Serial.println("IMU.begin failed; retrying...");
     delay(500);
   }
-  // DMP Initialization with detailed checks
-  if (imu.initializeDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: initializeDMP failed!"); while(1); }
-  if (imu.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableDMPSensor failed!"); while(1); }
-  // Set DMP ODR for Quat6 (Game Rotation Vector). reg_val=0 means max rate (225Hz or 1125Hz depending on gyro DLPF)
-  // reg_val=1 -> ~112.5Hz for 225Hz base, reg_val=4 -> ~45Hz.
-  // For a 100Hz loop (TIME_STEP 0.01s), ODR of ~112.5Hz (reg_val=1) or faster is good.
-  if (imu.setDMPODRrate(DMP_ODR_Reg_Quat6, 1) != ICM_20948_Stat_Ok) { Serial.println("FATAL: setDMPODRrate failed!"); while(1); }
-  if (imu.enableFIFO() != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableFIFO failed!"); while(1); }
-  if (imu.enableDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableDMP failed!"); while(1); }
-  if (imu.resetDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: resetDMP failed!"); while(1); }
-  if (imu.resetFIFO() != ICM_20948_Stat_Ok) { Serial.println("FATAL: resetFIFO failed!"); while(1); }
+  if (imu.initializeDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: initializeDMP failed!"); while (1); }
+  if (imu.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableDMPSensor failed!"); while (1); }
+  if (imu.setDMPODRrate(DMP_ODR_Reg_Quat6, 1) != ICM_20948_Stat_Ok) { Serial.println("FATAL: setDMPODRrate failed!"); while (1); } // ~112.5Hz DMP rate
+  if (imu.enableFIFO() != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableFIFO failed!"); while (1); }
+  if (imu.enableDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableDMP failed!"); while (1); }
+  if (imu.resetDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: resetDMP failed!"); while (1); }
+  if (imu.resetFIFO() != ICM_20948_Stat_Ok) { Serial.println("FATAL: resetFIFO failed!"); while (1); }
   Serial.println("ICM-20948 DMP ready.");
   // DMP Initialization with detailed checks
   if (imu.initializeDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: initializeDMP failed!"); while(1); }
@@ -140,7 +138,7 @@ void setup() {
   servoX.attach(xPin, 500, 2400); // Min/max pulse for 0-180 deg
   servoX.attach(xPin, 500, 2400); // Min/max pulse for 0-180 deg
   servoY.attach(yPin, 500, 2400);
-  servoX.write(90); // Neutral position
+  servoX.write(90);
   servoY.write(90);
   servoX.write(90); // Neutral position
   servoY.write(90);
@@ -149,7 +147,7 @@ void setup() {
   Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
   Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
   ledcWrite(escPin, usToDuty(1500));
-  delay(5000); // CRITICAL: Longer delay for ESC arming
+  delay(5000);
   Serial.println("ESC presumed armed.");
   delay(5000); // CRITICAL: Longer delay for ESC arming
   Serial.println("ESC presumed armed.");
@@ -161,6 +159,7 @@ void setup() {
   prevTime_rw_micros = micros(); // Initialize timer for Reaction Wheel PID
   Serial.println("Setup complete.");
 }
+
 // --- Main loop ---
 void loop() {
   unsigned long loop_start_micros = micros(); // For main loop timing
@@ -175,10 +174,11 @@ void loop() {
   icm_20948_DMP_data_t dmp_data;
   if (imu.readDMPdataFromFIFO(&dmp_data) == ICM_20948_Stat_Ok &&
       (dmp_data.header & DMP_header_bitmap_Quat6)) {
-    double q1 = static_cast<double>(dmp_data.Quat6.Data.Q1) / 1073741824.0;
-    double q2 = static_cast<double>(dmp_data.Quat6.Data.Q2) / 1073741824.0;
-    double q3 = static_cast<double>(dmp_data.Quat6.Data.Q3) / 1073741824.0;
-    // CRITICAL: Safe q0 calculation to prevent NaN
+
+    double q1 = static_cast<double>(dmp_data.Quat6.Data.Q1) / 1073741824.0; // Corresponds to X-axis rotation
+    double q2 = static_cast<double>(dmp_data.Quat6.Data.Q2) / 1073741824.0; // Corresponds to Y-axis rotation
+    double q3 = static_cast<double>(dmp_data.Quat6.Data.Q3) / 1073741824.0; // Corresponds to Z-axis rotation
+    
     double q_sum_sq = q1 * q1 + q2 * q2 + q3 * q3;
     double q0 = (q_sum_sq < 1.0) ? sqrt(1.0 - q_sum_sq) : 0.0;
     double q1 = static_cast<double>(dmp_data.Quat6.Data.Q1) / 1073741824.0;
@@ -272,62 +272,66 @@ void loop() {
     // --- Low-pass filter the raw angles ---
     current_roll_lpf  = lpf(current_roll_lpf,  current_roll_raw,  LPF_BETA);
     current_pitch_lpf = lpf(current_pitch_lpf, current_pitch_raw, LPF_BETA);
-    // --- TVC PID Control (New LPF-based version) ---
-    unsigned long current_tvc_micros = micros();
-    float dt_tvc = (tvc_prev_time_micros == 0) ? TVC_TIME_STEP_TARGET :
-                   static_cast<float>(current_tvc_micros - tvc_prev_time_micros) * 1e-6f;
-    if (dt_tvc <= 0.00001f) { // If dt is too small or first run with 0
-        dt_tvc = TVC_TIME_STEP_TARGET; // Use target dt
-    }
-    tvc_prev_time_micros = current_tvc_micros;
-    // Target angles are 0 degrees (stabilize to level)
-    float tvc_error[2];
-    tvc_error[0] = 0.0f - current_roll_lpf;  // Error for roll
-    tvc_error[1] = 0.0f - current_pitch_lpf; // Error for pitch
-    float servo_command_angle[2] = {90.0f, 90.0f}; // Default to neutral
-    for (int axis = 0; axis < 2; ++axis) {
-      if (fabs(tvc_error[axis]) < tvc_deadzone) {
-        // Inside deadzone: command servo to neutral, reset integral for this axis
-        servo_command_angle[axis] = 90.0f;
-        tvc_error_integral[axis] = 0.0f; // Anti-windup
-        // tvc_prev_error[axis] should still be updated with the current small error for next D-term calculation if it exits deadzone
-      } else {
-        // Outside deadzone: calculate PID
-        tvc_error_integral[axis] += tvc_error[axis] * dt_tvc;
-        // Optional: Clamp integral term
-        // float max_integral = 50.0f; // Tune this value
-        // tvc_error_integral[axis] = constrain(tvc_error_integral[axis], -max_integral, max_integral);
-        float derivative = (dt_tvc > 0.00001f) ? (tvc_error[axis] - tvc_prev_error[axis]) / dt_tvc : 0.0f;
-        float pid_correction = Kp_tvc * tvc_error[axis] +
-                               Ki_tvc * tvc_error_integral[axis] +
-                               Kd_tvc * derivative;
-        // Optional: Apply minimum deflection if you want that behavior
-        // pid_correction = applyMinDeflection(pid_correction, (axis == 0) ? 2.5f : 0.0f);
-        // Constrain PID output to servo travel limits (e.g., +/- 30 degrees deflection)
-        float max_deflection = 30.0f;
-        pid_correction = constrain(pid_correction, -max_deflection, max_deflection);
-        servo_command_angle[axis] = 90.0f + round(pid_correction);
+
+    // --- Check for TVC shutdown condition ---
+    if (tvc_system_active) {
+      if (fabs(current_roll_lpf) > MAX_ALLOWABLE_ANGLE_ERROR ||
+          fabs(current_pitch_lpf) > MAX_ALLOWABLE_ANGLE_ERROR) {
+        Serial.println("!!! TVC SHUTDOWN: Angle limit exceeded !!!");
+        tvc_system_active = false;
+        servoX.write(90);
+        servoY.write(90);
+        tvc_error_integral[0] = 0.0f;
+        tvc_error_integral[1] = 0.0f;
+        tvc_prev_error[0] = 0.0f; // Reset previous error as well
+        tvc_prev_error[1] = 0.0f;
       }
-      tvc_prev_error[axis] = tvc_error[axis]; // Update previous error for next D-term calculation
     }
-    Serial.print("Roll: ");
-    Serial.print(current_roll_lpf, 1);
-    Serial.print(", Pitch: ");
-    Serial.print(current_pitch_lpf, 1);
-    Serial.print(" | ServoX: ");
-    Serial.print(servo_command_angle[0], 1);
-    Serial.print(", ServoY: ");
-    Serial.println(servo_command_angle[1], 1);
-    servoX.write(static_cast<int>(servo_command_angle[0]));
-    servoY.write(static_cast<int>(servo_command_angle[1]));
-    //Positive direction in Z equals -Y
-    //Positive direction in
-    // Serial debugging (uncomment what you need, print sparingly to avoid slowing loop)
-    // Serial.print("RollRaw: "); Serial.print(current_roll_raw);
-    // Serial.print(" RollLPF: "); Serial.print(current_roll_lpf);
-    // Serial.print(" ErrRoll: "); Serial.print(tvc_error[0]);
-    // Serial.print(" ServX: "); Serial.println(servo_command_angle[0]);
-    // Similar for Pitch
+
+    // --- TVC PID Control ---
+    if (tvc_system_active) {
+      unsigned long current_tvc_micros = micros();
+      float dt_tvc = (tvc_prev_time_micros == 0) ? TVC_TIME_STEP_TARGET : static_cast<float>(current_tvc_micros - tvc_prev_time_micros) * 1e-6f;
+      if (dt_tvc <= 0.00001f) { dt_tvc = TVC_TIME_STEP_TARGET; }
+      tvc_prev_time_micros = current_tvc_micros;
+
+      float tvc_error[2];
+      // IMPORTANT: If control is inverted (e.g. positive error makes servo go wrong way), flip sign here:
+      tvc_error[0] = 0.0f - current_roll_lpf;  // Target is 0 degree roll
+      tvc_error[1] = 0.0f - current_pitch_lpf; // Target is 0 degree pitch
+      
+      float servo_command_angle[2] = {90.0f, 90.0f};
+
+      for (int axis = 0; axis < 2; ++axis) {
+        if (fabs(tvc_error[axis]) < tvc_deadzone) {
+          servo_command_angle[axis] = 90.0f;
+          tvc_error_integral[axis] = 0.0f;
+        } else {
+          tvc_error_integral[axis] += tvc_error[axis] * dt_tvc;
+          // Optional: Clamp tvc_error_integral[axis]
+          float derivative = (dt_tvc > 0.00001f) ? (tvc_error[axis] - tvc_prev_error[axis]) / dt_tvc : 0.0f;
+          float pid_correction = Kp_tvc * tvc_error[axis] +
+                                 Ki_tvc * tvc_error_integral[axis] +
+                                 Kd_tvc * derivative;
+          float max_deflection = 30.0f;
+          pid_correction = constrain(pid_correction, -max_deflection, max_deflection);
+          servo_command_angle[axis] = 90.0f + round(pid_correction);
+        }
+        tvc_prev_error[axis] = tvc_error[axis];
+      }
+      servoX.write(static_cast<int>(servo_command_angle[0]));
+      servoY.write(static_cast<int>(servo_command_angle[1]));
+
+      Serial.print("Roll: "); Serial.print(current_roll_lpf, 1);
+      Serial.print(", Pitch: "); Serial.print(current_pitch_lpf, 1);
+      Serial.print(" | ServoX: "); Serial.print(servo_command_angle[0], 1);
+      Serial.print(", ServoY: "); Serial.println(servo_command_angle[1], 1);
+
+    } else { // TVC system is NOT active
+      servoX.write(90);
+      servoY.write(90);
+      Serial.println("TVC System Inactive. Servos at Neutral.");
+    }
   } // End of DMP data processing
     // Serial debugging (uncomment what you need, print sparingly to avoid slowing loop)
     // Serial.print("RollRaw: "); Serial.print(current_roll_raw);
@@ -341,14 +345,11 @@ void loop() {
   if (imu.dataReady()) { // This checks for new raw sensor data, separate from DMP FIFO
   if (imu.dataReady()) { // This checks for new raw sensor data, separate from DMP FIFO
     imu.getAGMT();
-    float yawRate = imu.gyrZ(); // degrees/sec from raw gyro
+    float yawRate = imu.gyrZ();
     float targetYawRate = 0.0f;
     unsigned long current_rw_micros = micros();
-    float dt_rw = (prevTime_rw_micros == 0) ? TVC_TIME_STEP_TARGET : // Use a default on first run
-                  static_cast<float>(current_rw_micros - prevTime_rw_micros) * 1e-6f;
-    if (dt_rw <= 0.00001f) {
-        dt_rw = TVC_TIME_STEP_TARGET; // Fallback if dt is too small
-    }
+    float dt_rw = (prevTime_rw_micros == 0) ? TVC_TIME_STEP_TARGET : static_cast<float>(current_rw_micros - prevTime_rw_micros) * 1e-6f;
+    if (dt_rw <= 0.00001f) { dt_rw = TVC_TIME_STEP_TARGET; }
     prevTime_rw_micros = current_rw_micros;
     float yawRate = imu.gyrZ(); // degrees/sec from raw gyro
     float targetYawRate = 0.0f;
@@ -370,8 +371,6 @@ void loop() {
     prevError_rw = error_rw;
     float error_rw = targetYawRate - yawRate;
     integral_rw += error_rw * dt_rw;
-    // Optional: Clamp integral_rw
-    // integral_rw = constrain(integral_rw, -some_max_rw_integral, some_max_rw_integral);
     float derivative_rw = (dt_rw > 0.00001f) ? (error_rw - prevError_rw) / dt_rw : 0.0f;
     prevError_rw = error_rw;
 
@@ -395,7 +394,4 @@ void loop() {
   if (delay_needed_micros > 0) {
     delayMicroseconds(delay_needed_micros);
   }
-  // else {
-  //   Serial.println("Warning: Loop took longer than target time step.");
-  // }
 }
