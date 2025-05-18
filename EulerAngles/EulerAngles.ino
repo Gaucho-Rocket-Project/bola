@@ -123,8 +123,6 @@ void loop() {
 
     // Pitch (around IMU Y-axis / vehicle's transverse axis)
     // A common formulation for pitch from quaternion: asin(2.0 * (q0*q2 - q1*q3))
-    // The one you had (q0*q2 - q3*q1) is also a valid rotation sequence.
-    // Ensure it matches your physical setup and desired response.
     double t2_pitch = 2.0 * (q0 * q2 - q3 * q1); 
     if (t2_pitch > 1.0)  t2_pitch = 1.0;
     if (t2_pitch < -1.0) t2_pitch = -1.0;
