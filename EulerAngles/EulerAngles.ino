@@ -4,6 +4,7 @@
 #include <ESP32Servo.h>
 #include "ICM_20948.h" // Your ICM_20948 library header
 #include <cmath>       // For fabs, sqrt, atan2, asin, round
+
 // --- SPI pins for VSPI (default) ---
 #define SPI_SCLK 18
 #define SPI_MISO 19
@@ -19,6 +20,7 @@ const int escRes = 16;  // 16-bit PWM resolution
 Servo servoX, servoY;
 int xPin = 13;
 int yPin = 12;
+
 // --- PID constants for reaction wheel (yaw rate) ---
 const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
 float prevError_rw = 0.0f, integral_rw = 0.0f;
@@ -45,6 +47,7 @@ bool tvc_system_active = true;                 // True if TVC is allowed to oper
 
 // --- IMU object ---
 ICM_20948_SPI imu;
+
 // --- Helpers ---
 uint32_t usToDuty(int us) {
   return (uint32_t)us * ((1UL << escRes) - 1) / 20000;
@@ -72,12 +75,14 @@ void setup() {
   if (imu.resetDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: resetDMP failed!"); while (1); }
   if (imu.resetFIFO() != ICM_20948_Stat_Ok) { Serial.println("FATAL: resetFIFO failed!"); while (1); }
   Serial.println("ICM-20948 DMP ready.");
+
   servoX.setPeriodHertz(50);
   servoY.setPeriodHertz(50);
   servoX.attach(xPin, 500, 2400);
   servoY.attach(yPin, 500, 2400);
   servoX.write(90);
   servoY.write(90);
+
   ledcAttach(escPin, escFreq, escRes);
   Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
   ledcWrite(escPin, usToDuty(1500));
@@ -88,6 +93,7 @@ void setup() {
   prevTime_rw_micros = micros();
   Serial.println("Setup complete.");
 }
+
 // --- Main loop ---
 void loop() {
   unsigned long loop_start_micros = micros();
