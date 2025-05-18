@@ -35,7 +35,7 @@ const float tvc_deadzone = 2.0f;
 const float LPF_BETA = 0.2f;
 
 // Variables for the LPF-based TVC PID
-float current_roll_lpf = 0.0f;
+float current_roll_lpf = 0.0f;      
 float current_pitch_lpf = 0.0f;
 float tvc_error_integral[2] = {0.0f, 0.0f};
 float tvc_prev_error[2] = {0.0f, 0.0f};
