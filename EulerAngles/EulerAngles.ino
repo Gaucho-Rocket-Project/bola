@@ -9,33 +9,33 @@
 #include <vector>
 #include <array> // added for lookup table
 
-// --- SPI pins for VSPI (default) ---
-#define SPI_SCLK 18
-#define SPI_MISO 19
-#define SPI_MOSI 23
+// --- SPI pins for VSPI (default) --- 
+#define SPI_SCLK 18 
+#define SPI_MISO 19 
+#define SPI_MOSI 23 
 #define CS_PIN 5 // Chip‐select for ICM-20948
 
-// --- Reaction‐wheel ESC on GPIO27 ---
-const int escPin = 27;
-const int escFreq = 50; // 50 Hz for typical ESC PWM
-const int escRes = 16;  // 16-bit PWM resolution
+// --- Reaction‐wheel ESC on GPIO27 --- 
+const int escPin = 27; 
+const int escFreq = 50; // 50 Hz for typical ESC PWM 
+const int escRes = 16; // 16-bit PWM resolution
 
-// --- TVC servos on two GPIOs ---
-Servo servoX, servoY;
-int xPin = 13;
+// --- TVC servos on two GPIOs --- 
+Servo servoX, servoY; 
+int xPin = 13; 
 int yPin = 12;
 
-// --- PID constants for reaction wheel (yaw rate) ---
-const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
-float prevError_rw = 0.0f, integral_rw = 0.0f;
+// --- PID constants for reaction wheel (yaw rate) --- 
+const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f; 
+float prevError_rw = 0.0f, integral_rw = 0.0f; 
 unsigned long prevTime_rw_micros = 0;
 
-// --- PID constants for TVC (roll/pitch) ---
-const float Kp_tvc = 1.5f;
-const float Ki_tvc = 0.1f;
-const float Kd_tvc = 0.05f; // START VERY LOW (e.g., 0.0) AND TUNE UP
-const float TVC_TIME_STEP_TARGET = 0.01f;
-const float tvc_deadzone = 2.0f;
+// --- PID constants for TVC (roll/pitch) --- 
+const float Kp_tvc = 1.5f; 
+const float Ki_tvc = 0.1f; 
+const float Kd_tvc = 0.05f; // START VERY LOW (e.g., 0.0) AND TUNE UP 
+const float TVC_TIME_STEP_TARGET = 0.01f; 
+const float tvc_deadzone = 2.0f; 
 const float LPF_BETA = 0.2f;
 
 // Variables for the LPF-based TVC PID
@@ -50,7 +50,7 @@ const float TVC_MAX_ANGLE_LIMIT = 90.0f;   // Max filtered angle before TVC ente
 const float TVC_RESET_ANGLE_LIMIT = 25.0f; // Angle below which TVC can exit limp mode
 bool tvc_in_limp_mode = false;
 
-// --- IMU object ---
+// --- IMU object --- 
 ICM_20948_SPI imu;
 
 // --- Helpers ---
@@ -179,22 +179,22 @@ void setup()
   }
   Serial.println("ICM-20948 DMP ready.");
 
-  servoX.setPeriodHertz(50);
-  servoY.setPeriodHertz(50);
-  servoX.attach(xPin, 500, 2400);
-  servoY.attach(yPin, 500, 2400);
-  servoX.write(90);
+  servoX.setPeriodHertz(50); 
+  servoY.setPeriodHertz(50); 
+  servoX.attach(xPin, 500, 2400); 
+  servoY.attach(yPin, 500, 2400); 
+  servoX.write(90); 
   servoY.write(90);
 
-  ledcAttach(escPin, escFreq, escRes);
-  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
-  ledcWrite(escPin, usToDuty(1500));
-  delay(5000);
+  ledcAttach(escPin, escFreq, escRes); 
+  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds..."); 
+  ledcWrite(escPin, usToDuty(1500)); 
+  delay(5000); 
   Serial.println("ESC presumed armed.");
 
-  tvc_prev_time_micros = micros();
-  prevTime_rw_micros = micros();
-  Serial.println("Setup complete.");
+  tvc_prev_time_micros = micros(); 
+  prevTime_rw_micros = micros(); 
+  Serial.println("Setup complete."); 
 }
 
 // --- Main loop ---
