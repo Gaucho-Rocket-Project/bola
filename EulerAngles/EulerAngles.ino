@@ -41,9 +41,10 @@ float tvc_error_integral[2] = {0.0f, 0.0f};
 float tvc_prev_error[2] = {0.0f, 0.0f};
 unsigned long tvc_prev_time_micros = 0;
 
-// --- TVC System Control ---
-const float MAX_ALLOWABLE_ANGLE_ERROR = 30.0f; // Max filtered angle before TVC shutdown
-bool tvc_system_active = true;                 // True if TVC is allowed to operate
+// TVC Limp Mode (Shutdown)
+const float TVC_MAX_ANGLE_LIMIT = 30.0f; // Max filtered angle before TVC enters limp mode
+const float TVC_RESET_ANGLE_LIMIT = 25.0f; // Angle below which TVC can exit limp mode
+bool tvc_in_limp_mode = false;
 
 // --- IMU object ---
 ICM_20948_SPI imu;
@@ -72,7 +73,7 @@ void setup() {
   }
   if (imu.initializeDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: initializeDMP failed!"); while (1); }
   if (imu.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableDMPSensor failed!"); while (1); }
-  if (imu.setDMPODRrate(DMP_ODR_Reg_Quat6, 1) != ICM_20948_Stat_Ok) { Serial.println("FATAL: setDMPODRrate failed!"); while (1); } // ~112.5Hz DMP rate
+  if (imu.setDMPODRrate(DMP_ODR_Reg_Quat6, 1) != ICM_20948_Stat_Ok) { Serial.println("FATAL: setDMPODRrate failed!"); while (1); }
   if (imu.enableFIFO() != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableFIFO failed!"); while (1); }
   if (imu.enableDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableDMP failed!"); while (1); }
   if (imu.resetDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: resetDMP failed!"); while (1); }
@@ -106,62 +107,71 @@ void loop() {
   if (imu.readDMPdataFromFIFO(&dmp_data) == ICM_20948_Stat_Ok &&
       (dmp_data.header & DMP_header_bitmap_Quat6)) {
 
-    double q1 = static_cast<double>(dmp_data.Quat6.Data.Q1) / 1073741824.0; // Corresponds to X-axis rotation
-    double q2 = static_cast<double>(dmp_data.Quat6.Data.Q2) / 1073741824.0; // Corresponds to Y-axis rotation
-    double q3 = static_cast<double>(dmp_data.Quat6.Data.Q3) / 1073741824.0; // Corresponds to Z-axis rotation
+    double q1 = static_cast<double>(dmp_data.Quat6.Data.Q1) / 1073741824.0; // X-axis rotation component
+    double q2 = static_cast<double>(dmp_data.Quat6.Data.Q2) / 1073741824.0; // Y-axis rotation component
+    double q3 = static_cast<double>(dmp_data.Quat6.Data.Q3) / 1073741824.0; // Z-axis rotation component
     
     double q_sum_sq = q1 * q1 + q2 * q2 + q3 * q3;
     double q0 = (q_sum_sq < 1.0) ? sqrt(1.0 - q_sum_sq) : 0.0;
 
-    // Standard Euler Angle Convention (CHECK YOUR AXES AND SERVO MAPPING!)
-    // Roll (around IMU X-axis, typically controlled by servoX)
-    double t0_roll_std = 2.0 * (q0 * q1 + q2 * q3);
-    double t1_roll_std = 1.0 - 2.0 * (q1 * q1 + q2 * q2);
-    float current_roll_raw = atan2(t0_roll_std, t1_roll_std) * (180.0 / PI);
+    // ---- CHOOSE AND USE ONLY ONE EULER ANGLE CONVERSION ----
+    // Standard Euler Angle Convention (Confirm your IMU axis mapping to Roll/Pitch vehicle axes)
+    // Roll (around IMU X-axis / vehicle's longitudinal axis)
+    double t0_roll = 2.0 * (q0 * q1 + q2 * q3);
+    double t1_roll = 1.0 - 2.0 * (q1 * q1 + q2 * q2);
+    float current_roll_raw = atan2(t0_roll, t1_roll) * (180.0 / PI);
 
-    // Pitch (around IMU Y-axis, typically controlled by servoY)
-    double t2_pitch_std = 2.0 * (q0 * q2 - q3 * q1); // Note: standard formula often q0*q2 - q3*q1 or q0*q2 - q1*q3
-                                                  // This uses q0, q2, q1, q3. Confirm with IMU datasheet / common conventions.
-                                                  // A common one is asin(2*(q0*q2 - q1*q3))
-    if (t2_pitch_std > 1.0)  t2_pitch_std = 1.0;
-    if (t2_pitch_std < -1.0) t2_pitch_std = -1.0;
-    float current_pitch_raw = asin(t2_pitch_std) * (180.0 / PI);
+    // Pitch (around IMU Y-axis / vehicle's transverse axis)
+    // A common formulation for pitch from quaternion: asin(2.0 * (q0*q2 - q1*q3))
+    // The one you had (q0*q2 - q3*q1) is also a valid rotation sequence.
+    // Ensure it matches your physical setup and desired response.
+    double t2_pitch = 2.0 * (q0 * q2 - q3 * q1); 
+    if (t2_pitch > 1.0)  t2_pitch = 1.0;
+    if (t2_pitch < -1.0) t2_pitch = -1.0;
+    float current_pitch_raw = asin(t2_pitch) * (180.0 / PI);
+    // ---- END OF EULER ANGLE CONVERSION ----
 
     current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA);
     current_pitch_lpf = lpf(current_pitch_lpf, current_pitch_raw, LPF_BETA);
 
-    // --- Check for TVC shutdown condition ---
-    if (tvc_system_active) {
-      if (fabs(current_roll_lpf) > MAX_ALLOWABLE_ANGLE_ERROR ||
-          fabs(current_pitch_lpf) > MAX_ALLOWABLE_ANGLE_ERROR) {
-        Serial.println("!!! TVC SHUTDOWN: Angle limit exceeded !!!");
-        tvc_system_active = false;
-        servoX.write(90);
-        servoY.write(90);
-        tvc_error_integral[0] = 0.0f;
-        tvc_error_integral[1] = 0.0f;
-        tvc_prev_error[0] = 0.0f; // Reset previous error as well
-        tvc_prev_error[1] = 0.0f;
-      }
+    // ---------- TVC Limp Mode Logic ------------------------------
+    if (!tvc_in_limp_mode &&
+        (fabs(current_roll_lpf) > TVC_MAX_ANGLE_LIMIT ||
+         fabs(current_pitch_lpf) > TVC_MAX_ANGLE_LIMIT)) {
+      Serial.println("!!! TVC Entering LIMP MODE: Angle limit exceeded !!!");
+      tvc_in_limp_mode = true;
+      servoX.write(90); // Go to neutral
+      servoY.write(90);
+      tvc_error_integral[0] = 0.0f; // Reset PID state
+      tvc_error_integral[1] = 0.0f;
+      tvc_prev_error[0] = 0.0f;     // Reset previous error for D term
+      tvc_prev_error[1] = 0.0f;
+    }
+
+    if (tvc_in_limp_mode &&
+        fabs(current_roll_lpf) < TVC_RESET_ANGLE_LIMIT &&
+        fabs(current_pitch_lpf) < TVC_RESET_ANGLE_LIMIT) {
+      Serial.println("TVC Exiting LIMP MODE: Angles back in range.");
+      tvc_in_limp_mode = false;
+      // PID state (integrals, prev_errors) will naturally rebuild on next active PID cycle
     }
 
     // --- TVC PID Control ---
-    if (tvc_system_active) {
+    if (!tvc_in_limp_mode) {
       unsigned long current_tvc_micros = micros();
       float dt_tvc = (tvc_prev_time_micros == 0) ? TVC_TIME_STEP_TARGET : static_cast<float>(current_tvc_micros - tvc_prev_time_micros) * 1e-6f;
       if (dt_tvc <= 0.00001f) { dt_tvc = TVC_TIME_STEP_TARGET; }
       tvc_prev_time_micros = current_tvc_micros;
 
       float tvc_error[2];
-      // IMPORTANT: If control is inverted (e.g. positive error makes servo go wrong way), flip sign here:
-      tvc_error[0] = 0.0f - current_roll_lpf;  // Target is 0 degree roll
-      tvc_error[1] = 0.0f - current_pitch_lpf; // Target is 0 degree pitch
+      tvc_error[0] = 0.0f - current_roll_lpf;
+      tvc_error[1] = 0.0f - current_pitch_lpf;
       
-      float servo_command_angle[2] = {90.0f, 90.0f};
+      float servo_command_angle_calculated[2] = {90.0f, 90.0f}; // Temporary for calculation
 
       for (int axis = 0; axis < 2; ++axis) {
         if (fabs(tvc_error[axis]) < tvc_deadzone) {
-          servo_command_angle[axis] = 90.0f;
+          servo_command_angle_calculated[axis] = 90.0f;
           tvc_error_integral[axis] = 0.0f;
         } else {
           tvc_error_integral[axis] += tvc_error[axis] * dt_tvc;
@@ -172,26 +182,32 @@ void loop() {
                                  Kd_tvc * derivative;
           float max_deflection = 30.0f;
           pid_correction = constrain(pid_correction, -max_deflection, max_deflection);
-          servo_command_angle[axis] = 90.0f + round(pid_correction);
+          servo_command_angle_calculated[axis] = 90.0f + round(pid_correction);
         }
         tvc_prev_error[axis] = tvc_error[axis];
       }
-      servoX.write(static_cast<int>(servo_command_angle[0]));
-      servoY.write(static_cast<int>(servo_command_angle[1]));
+      servoX.write(static_cast<int>(servo_command_angle_calculated[0]));
+      servoY.write(static_cast<int>(servo_command_angle_calculated[1]));
 
-      Serial.print("Roll: "); Serial.print(current_roll_lpf, 1);
+      Serial.print("ACTIVE Roll: "); Serial.print(current_roll_lpf, 1);
       Serial.print(", Pitch: "); Serial.print(current_pitch_lpf, 1);
-      Serial.print(" | ServoX: "); Serial.print(servo_command_angle[0], 1);
-      Serial.print(", ServoY: "); Serial.println(servo_command_angle[1], 1);
+      Serial.print(" | ServoX: "); Serial.print(servo_command_angle_calculated[0], 1);
+      Serial.print(", ServoY: "); Serial.println(servo_command_angle_calculated[1], 1);
 
-    } else { // TVC system is NOT active
+    } else { // TVC is in LIMP MODE
+      // Servos should already be at 90 from when limp mode was entered.
+      // This block ensures they stay there if no other logic writes to them.
       servoX.write(90);
       servoY.write(90);
-      Serial.println("TVC System Inactive. Servos at Neutral.");
+      Serial.print("LIMP MODE Roll: "); Serial.print(current_roll_lpf, 1);
+      Serial.print(", Pitch: "); Serial.print(current_pitch_lpf, 1);
+      Serial.println(" | Servos at Neutral.");
     }
   } // End of DMP data processing
+
   // 2) Reaction-wheel yaw‐rate PID
-  if (tvc_system_active && imu.dataReady()) { // Optionally, only run reaction wheel if TVC is also active
+  // Consider if reaction wheel should also be affected by tvc_in_limp_mode
+  if (!tvc_in_limp_mode && imu.dataReady()) { // Only run RW PID if TVC is not in limp mode
     imu.getAGMT();
     float yawRate = imu.gyrZ();
     float targetYawRate = 0.0f;
@@ -199,19 +215,21 @@ void loop() {
     float dt_rw = (prevTime_rw_micros == 0) ? TVC_TIME_STEP_TARGET : static_cast<float>(current_rw_micros - prevTime_rw_micros) * 1e-6f;
     if (dt_rw <= 0.00001f) { dt_rw = TVC_TIME_STEP_TARGET; }
     prevTime_rw_micros = current_rw_micros;
+
     float error_rw = targetYawRate - yawRate;
     integral_rw += error_rw * dt_rw;
     float derivative_rw = (dt_rw > 0.00001f) ? (error_rw - prevError_rw) / dt_rw : 0.0f;
     prevError_rw = error_rw;
     float pid_output_rw = Kp_rw * error_rw + Ki_rw * integral_rw + Kd_rw * derivative_rw;
-    int pulse_rw = static_cast<int>(round(1500.0f - pid_output_rw)); // Adjust sign if needed
+    int pulse_rw = static_cast<int>(round(1500.0f - pid_output_rw));
     pulse_rw = constrain(pulse_rw, 1000, 2000);
     ledcWrite(escPin, usToDuty(pulse_rw));
-  } else if (!tvc_system_active) {
-    // If TVC is off, maybe reaction wheel should also go to neutral or off.
-    // For safety, sending neutral to ESC.
+  } else if (tvc_in_limp_mode) {
+    // If TVC is in limp mode, set reaction wheel to neutral for safety
     ledcWrite(escPin, usToDuty(1500));
+    // Serial.println("Reaction Wheel Neutral due to TVC Limp Mode.");
   }
+
 
   // --- Maintain loop rate ---
   long loop_duration_micros = micros() - loop_start_micros;
