@@ -1,116 +1,176 @@
-// === SPI VERSION with TVC + Reaction‐Wheel Control ===
-// Make sure to uncomment "#define ICM_20948_USE_DMP" in ICM_20948_C.h
-#include <SPI.h>
-#include <ESP32Servo.h>
-#include "ICM_20948.h" // Your ICM_20948 library header
-#include <cmath>       // For fabs, sqrt, atan2, asin, round
+// === SPI VERSION with TVC + Reaction‐Wheel Control === 
+// Make sure to uncomment "#define ICM_20948_USE_DMP" in ICM_20948_C.h 
+#include <SPI.h> 
+#include <ESP32Servo.h> 
+#include "ICM_20948.h" // Your ICM_20948 library header 
+#include <cmath> // For fabs, sqrt, atan2, asin, round
 
-// --- SPI pins for VSPI (default) ---
-#define SPI_SCLK 18
-#define SPI_MISO 19
-#define SPI_MOSI 23
+// --- SPI pins for VSPI (default) --- 
+#define SPI_SCLK 18 
+#define SPI_MISO 19 
+#define SPI_MOSI 23 
 #define CS_PIN 5 // Chip‐select for ICM-20948
 
-// --- Reaction‐wheel ESC on GPIO27 ---
-const int escPin = 27;
-const int escFreq = 50; // 50 Hz for typical ESC PWM
-const int escRes = 16;  // 16-bit PWM resolution
+// --- Reaction‐wheel ESC on GPIO27 --- 
+const int escPin = 27; 
+const int escFreq = 50; // 50 Hz for typical ESC PWM 
+const int escRes = 16; // 16-bit PWM resolution
 
-// --- TVC servos on two GPIOs ---
-Servo servoX, servoY;
-int xPin = 13;
+// --- TVC servos on two GPIOs --- 
+Servo servoX, servoY; 
+int xPin = 13; 
 int yPin = 12;
 
-// --- PID constants for reaction wheel (yaw rate) ---
-const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
-float prevError_rw = 0.0f, integral_rw = 0.0f;
+// --- PID constants for reaction wheel (yaw rate) --- 
+const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f; 
+float prevError_rw = 0.0f, integral_rw = 0.0f; 
 unsigned long prevTime_rw_micros = 0;
 
-// --- PID constants for TVC (roll/pitch) ---
-const float Kp_tvc = 1.5f;
-const float Ki_tvc = 0.1f;
-const float Kd_tvc = 0.05f; // START VERY LOW (e.g., 0.0) AND TUNE UP
-const float TVC_TIME_STEP_TARGET = 0.01f;
-const float tvc_deadzone = 2.0f;
+// --- PID constants for TVC (roll/pitch) --- 
+const float Kp_tvc = 1.5f; 
+const float Ki_tvc = 0.1f; 
+const float Kd_tvc = 0.05f; // START VERY LOW (e.g., 0.0) AND TUNE UP 
+const float TVC_TIME_STEP_TARGET = 0.01f; 
+const float tvc_deadzone = 2.0f; 
 const float LPF_BETA = 0.2f;
 
-// Variables for the LPF-based TVC PID
-float current_roll_lpf = 0.0f;      
-float current_pitch_lpf = 0.0f;
-float tvc_error_integral[2] = {0.0f, 0.0f};
-float tvc_prev_error[2] = {0.0f, 0.0f};
+// Variables for the LPF-based TVC PID 
+float current_roll_lpf = 0.0f;
+float current_pitch_lpf = 0.0f; 
+float tvc_error_integral[2] = {0.0f, 0.0f}; 
+float tvc_prev_error[2] = {0.0f, 0.0f}; 
 unsigned long tvc_prev_time_micros = 0;
 
-// TVC Limp Mode (Shutdown)
-const float TVC_MAX_ANGLE_LIMIT = 30.0f; // Max filtered angle before TVC enters limp mode
-const float TVC_RESET_ANGLE_LIMIT = 25.0f; // Angle below which TVC can exit limp mode
+// TVC Limp Mode (Shutdown) 
+const float TVC_MAX_ANGLE_LIMIT = 90.0f; // Max filtered angle before TVC enters limp mode 
+const float TVC_RESET_ANGLE_LIMIT = 25.0f; // Angle below which TVC can exit limp mode 
 bool tvc_in_limp_mode = false;
 
-// --- IMU object ---
+// --- IMU object --- 
 ICM_20948_SPI imu;
 
-// --- Helpers ---
-uint32_t usToDuty(int us) {
-  return (uint32_t)us * ((1UL << escRes) - 1) / 20000;
+// --- Helpers --- 
+uint32_t usToDuty(int us) { 
+  return (uint32_t)us * ((1UL << escRes) - 1) / 20000; 
 }
 
-static float lpf(float prev_lpf_val, float current_measurement, float beta) {
-  return beta * current_measurement + (1.0f - beta) * prev_lpf_val;
+static float lpf(float prev_lpf_val, float current_measurement, float beta) { 
+  return beta * current_measurement + (1.0f - beta) * prev_lpf_val; 
 }
 
-// --- Setup ---
-void setup() {
-  Serial.begin(115200);
-  while (!Serial);
+// Function to correct servo angle based on the formula
+float correctServoAngle(float servo_angle) {
+  // Convert from servo angle (0-180) to angle in radians for calculation
+  // Assuming 90 is neutral, so we need to convert to +/- angles
+  float theta_2_rad = (servo_angle - 90.0f) * PI / 180.0f;
+  float theta_4_rad = theta_2_rad; // Initial guess for theta_4
+  
+  // Iterative approach to solve for theta_4
+  float tolerance = 0.001f; // Precision tolerance
+  int max_iterations = 10;
+  
+  for (int i = 0; i < max_iterations; i++) {
+    // Calculate right side of equation
+    float right_side = 2.215f - 1.219f * cos(theta_2_rad) + 3.495f * cos(theta_4_rad);
+    
+    // Ensure right_side is within valid range for arccos
+    right_side = constrain(right_side, -1.0f, 1.0f);
+    
+    // Calculate new theta_4 based on formula
+    float theta_diff = acos(right_side);
+    float new_theta_4_rad = theta_2_rad + theta_diff;
+    
+    // Check convergence
+    if (fabs(new_theta_4_rad - theta_4_rad) < tolerance) {
+      theta_4_rad = new_theta_4_rad;
+      break;
+    }
+    
+    theta_4_rad = new_theta_4_rad;
+  }
+  
+  // Convert back to servo angle (0-180)
+  float corrected_angle = (theta_4_rad * 180.0f / PI) + 90.0f;
+  
+  // Ensure the angle is within servo range
+  corrected_angle = constrain(corrected_angle, 0.0f, 180.0f);
+  
+  return corrected_angle;
+}
+
+// --- Setup --- 
+void setup() { 
+  Serial.begin(115200); 
+  while (!Serial); 
   Serial.println("Setup starting...");
 
   SPI.begin(SPI_SCLK, SPI_MISO, SPI_MOSI);
 
-  Serial.println("Initializing IMU DMP...");
-  while (imu.begin(CS_PIN, SPI) != ICM_20948_Stat_Ok) {
-    Serial.println("IMU.begin failed; retrying...");
-    delay(500);
-  }
-  if (imu.initializeDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: initializeDMP failed!"); while (1); }
-  if (imu.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableDMPSensor failed!"); while (1); }
-  if (imu.setDMPODRrate(DMP_ODR_Reg_Quat6, 1) != ICM_20948_Stat_Ok) { Serial.println("FATAL: setDMPODRrate failed!"); while (1); }
-  if (imu.enableFIFO() != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableFIFO failed!"); while (1); }
-  if (imu.enableDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableDMP failed!"); while (1); }
-  if (imu.resetDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: resetDMP failed!"); while (1); }
-  if (imu.resetFIFO() != ICM_20948_Stat_Ok) { Serial.println("FATAL: resetFIFO failed!"); while (1); }
+  Serial.println("Initializing IMU DMP..."); 
+  while (imu.begin(CS_PIN, SPI) != ICM_20948_Stat_Ok) { 
+    Serial.println("IMU.begin failed; retrying..."); 
+    delay(500); 
+  } 
+  if (imu.initializeDMP() != ICM_20948_Stat_Ok) { 
+    Serial.println("FATAL: initializeDMP failed!"); 
+    while (1); 
+  } 
+  if (imu.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) != ICM_20948_Stat_Ok) { 
+    Serial.println("FATAL: enableDMPSensor failed!"); 
+    while (1); 
+  } 
+  if (imu.setDMPODRrate(DMP_ODR_Reg_Quat6, 1) != ICM_20948_Stat_Ok) { 
+    Serial.println("FATAL: setDMPODRrate failed!"); 
+    while (1); 
+  } 
+  if (imu.enableFIFO() != ICM_20948_Stat_Ok) { 
+    Serial.println("FATAL: enableFIFO failed!"); 
+    while (1); 
+  } 
+  if (imu.enableDMP() != ICM_20948_Stat_Ok) { 
+    Serial.println("FATAL: enableDMP failed!"); 
+    while (1); 
+  } 
+  if (imu.resetDMP() != ICM_20948_Stat_Ok) { 
+    Serial.println("FATAL: resetDMP failed!"); 
+    while (1); 
+  } 
+  if (imu.resetFIFO() != ICM_20948_Stat_Ok) { 
+    Serial.println("FATAL: resetFIFO failed!"); 
+    while (1); 
+  } 
   Serial.println("ICM-20948 DMP ready.");
 
-  servoX.setPeriodHertz(50);
-  servoY.setPeriodHertz(50);
-  servoX.attach(xPin, 500, 2400);
-  servoY.attach(yPin, 500, 2400);
-  servoX.write(90);
+  servoX.setPeriodHertz(50); 
+  servoY.setPeriodHertz(50); 
+  servoX.attach(xPin, 500, 2400); 
+  servoY.attach(yPin, 500, 2400); 
+  servoX.write(90); 
   servoY.write(90);
 
-  ledcAttach(escPin, escFreq, escRes);
-  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
-  ledcWrite(escPin, usToDuty(1500));
-  delay(5000);
+  ledcAttach(escPin, escFreq, escRes); 
+  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds..."); 
+  ledcWrite(escPin, usToDuty(1500)); 
+  delay(5000); 
   Serial.println("ESC presumed armed.");
 
-  tvc_prev_time_micros = micros();
-  prevTime_rw_micros = micros();
-  Serial.println("Setup complete.");
+  tvc_prev_time_micros = micros(); 
+  prevTime_rw_micros = micros(); 
+  Serial.println("Setup complete."); 
 }
 
-// --- Main loop ---
-void loop() {
+// --- Main loop --- 
+void loop() { 
   unsigned long loop_start_micros = micros();
 
-  // 1) TVC control using DMP Game Rotation Vector
-  icm_20948_DMP_data_t dmp_data;
-  if (imu.readDMPdataFromFIFO(&dmp_data) == ICM_20948_Stat_Ok &&
-      (dmp_data.header & DMP_header_bitmap_Quat6)) {
+  // 1) TVC control using DMP Game Rotation Vector 
+  icm_20948_DMP_data_t dmp_data; 
+  if (imu.readDMPdataFromFIFO(&dmp_data) == ICM_20948_Stat_Ok && (dmp_data.header & DMP_header_bitmap_Quat6)) {
 
     double q1 = static_cast<double>(dmp_data.Quat6.Data.Q1) / 1073741824.0; // X-axis rotation component
     double q2 = static_cast<double>(dmp_data.Quat6.Data.Q2) / 1073741824.0; // Y-axis rotation component
     double q3 = static_cast<double>(dmp_data.Quat6.Data.Q3) / 1073741824.0; // Z-axis rotation component
-    
+
     double q_sum_sq = q1 * q1 + q2 * q2 + q3 * q3;
     double q0 = (q_sum_sq < 1.0) ? sqrt(1.0 - q_sum_sq) : 0.0;
 
@@ -166,10 +226,12 @@ void loop() {
       tvc_error[1] = 0.0f - current_pitch_lpf;
       
       float servo_command_angle_calculated[2] = {90.0f, 90.0f}; // Temporary for calculation
+      float corrected_servo_angle[2] = {90.0f, 90.0f}; // For storing corrected angles
 
       for (int axis = 0; axis < 2; ++axis) {
         if (fabs(tvc_error[axis]) < tvc_deadzone) {
           servo_command_angle_calculated[axis] = 90.0f;
+          corrected_servo_angle[axis] = 90.0f; // No correction needed at neutral
           tvc_error_integral[axis] = 0.0f;
         } else {
           tvc_error_integral[axis] += tvc_error[axis] * dt_tvc;
@@ -181,16 +243,23 @@ void loop() {
           float max_deflection = 30.0f;
           pid_correction = constrain(pid_correction, -max_deflection, max_deflection);
           servo_command_angle_calculated[axis] = 90.0f + round(pid_correction);
+          
+          // Apply the correction formula to get the actual servo angle needed
+          corrected_servo_angle[axis] = correctServoAngle(servo_command_angle_calculated[axis]);
         }
         tvc_prev_error[axis] = tvc_error[axis];
       }
-      servoX.write(static_cast<int>(servo_command_angle_calculated[0]));
-      servoY.write(static_cast<int>(servo_command_angle_calculated[1]));
+      
+      // Write the corrected angles to the servos
+      servoX.write(static_cast<int>(corrected_servo_angle[0]));
+      servoY.write(static_cast<int>(corrected_servo_angle[1]));
 
       Serial.print("ACTIVE Roll: "); Serial.print(current_roll_lpf, 1);
       Serial.print(", Pitch: "); Serial.print(current_pitch_lpf, 1);
-      Serial.print(" | ServoX: "); Serial.print(servo_command_angle_calculated[0], 1);
-      Serial.print(", ServoY: "); Serial.println(servo_command_angle_calculated[1], 1);
+      Serial.print(" | Desired: X="); Serial.print(servo_command_angle_calculated[0], 1);
+      Serial.print(", Y="); Serial.print(servo_command_angle_calculated[1], 1);
+      Serial.print(" | Corrected: X="); Serial.print(corrected_servo_angle[0], 1);
+      Serial.print(", Y="); Serial.println(corrected_servo_angle[1], 1);
 
     } else { // TVC is in LIMP MODE
       // Servos should already be at 90 from when limp mode was entered.
@@ -201,17 +270,18 @@ void loop() {
       Serial.print(", Pitch: "); Serial.print(current_pitch_lpf, 1);
       Serial.println(" | Servos at Neutral.");
     }
+
   } // End of DMP data processing
 
-  // 2) Reaction-wheel yaw‐rate PID
-  // Consider if reaction wheel should also be affected by tvc_in_limp_mode
-  if (!tvc_in_limp_mode && imu.dataReady()) { // Only run RW PID if TVC is not in limp mode
-    imu.getAGMT();
-    float yawRate = imu.gyrZ();
-    float targetYawRate = 0.0f;
-    unsigned long current_rw_micros = micros();
-    float dt_rw = (prevTime_rw_micros == 0) ? TVC_TIME_STEP_TARGET : static_cast<float>(current_rw_micros - prevTime_rw_micros) * 1e-6f;
-    if (dt_rw <= 0.00001f) { dt_rw = TVC_TIME_STEP_TARGET; }
+  // 2) Reaction-wheel yaw‐rate PID 
+  // Consider if reaction wheel should also be affected by tvc_in_limp_mode 
+  if (!tvc_in_limp_mode && imu.dataReady()) { // Only run RW PID if TVC is not in limp mode 
+    imu.getAGMT(); 
+    float yawRate = imu.gyrZ(); 
+    float targetYawRate = 0.0f; 
+    unsigned long current_rw_micros = micros(); 
+    float dt_rw = (prevTime_rw_micros == 0) ? TVC_TIME_STEP_TARGET : static_cast<float>(current_rw_micros - prevTime_rw_micros) * 1e-6f; 
+    if (dt_rw <= 0.00001f) { dt_rw = TVC_TIME_STEP_TARGET; } 
     prevTime_rw_micros = current_rw_micros;
 
     float error_rw = targetYawRate - yawRate;
@@ -222,17 +292,15 @@ void loop() {
     int pulse_rw = static_cast<int>(round(1500.0f - pid_output_rw));
     pulse_rw = constrain(pulse_rw, 1000, 2000);
     ledcWrite(escPin, usToDuty(pulse_rw));
-  } else if (tvc_in_limp_mode) {
-    // If TVC is in limp mode, set reaction wheel to neutral for safety
-    ledcWrite(escPin, usToDuty(1500));
-    // Serial.println("Reaction Wheel Neutral due to TVC Limp Mode.");
+
+  } else if (tvc_in_limp_mode) { // If TVC is in limp mode, set reaction wheel to neutral for safety 
+    ledcWrite(escPin, usToDuty(1500)); // Serial.println("Reaction Wheel Neutral due to TVC Limp Mode."); 
   }
 
-
-  // --- Maintain loop rate ---
-  long loop_duration_micros = micros() - loop_start_micros;
-  long delay_needed_micros = static_cast<long>(TVC_TIME_STEP_TARGET * 1e6f) - loop_duration_micros;
-  if (delay_needed_micros > 0) {
-    delayMicroseconds(delay_needed_micros);
-  }
+  // --- Maintain loop rate --- 
+  long loop_duration_micros = micros() - loop_start_micros; 
+  long delay_needed_micros = static_cast<long>(TVC_TIME_STEP_TARGET * 1e6f) - loop_duration_micros; 
+  if (delay_needed_micros > 0) { 
+    delayMicroseconds(delay_needed_micros); 
+  } 
 }
