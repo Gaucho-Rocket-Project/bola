@@ -3,7 +3,10 @@
 #include <SPI.h>
 #include <ESP32Servo.h>
 #include "ICM_20948.h" // Your ICM_20948 library header
-#include <cmath>       // For fabs, sqrt, atan2, asin, round
+#include <cmath> 
+#include <iostream>
+#include <utility> 
+#include <vector>
 
 // --- SPI pins for VSPI (default) ---
 #define SPI_SCLK 18
@@ -57,6 +60,22 @@ uint32_t usToDuty(int us) {
 static float lpf(float prev_lpf_val, float current_measurement, float beta) {
   return beta * current_measurement + (1.0f - beta) * prev_lpf_val;
 }
+
+std::vector<std::pair<int, int>> lookupTable(50);
+
+//right now 70 degrees is index 0 in the lookup table (can shift offset if needed)
+int getTheta4(int theta2) {
+  int offset = 70;
+  if(theta2 > 110) {
+    index = 110 - offset;
+  } if(theta2 < 70) {
+    index = 70 - offset;
+  } else {
+    index = theta2 - offset;
+  }
+  return lookupTable[index];
+}
+
 
 // --- Setup ---
 void setup() {
