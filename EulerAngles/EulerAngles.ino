@@ -9,33 +9,33 @@
 #include <vector>
 #include <array> // added for lookup table
 
-// --- SPI pins for VSPI (default) --- 
-#define SPI_SCLK 18 
-#define SPI_MISO 19 
-#define SPI_MOSI 23 
+// --- SPI pins for VSPI (default) ---
+#define SPI_SCLK 18
+#define SPI_MISO 19
+#define SPI_MOSI 23
 #define CS_PIN 5 // Chip‐select for ICM-20948
 
-// --- Reaction‐wheel ESC on GPIO27 --- 
-const int escPin = 27; 
-const int escFreq = 50; // 50 Hz for typical ESC PWM 
-const int escRes = 16; // 16-bit PWM resolution
+// --- Reaction‐wheel ESC on GPIO27 ---
+const int escPin = 27;
+const int escFreq = 50; // 50 Hz for typical ESC PWM
+const int escRes = 16;  // 16-bit PWM resolution
 
-// --- TVC servos on two GPIOs --- 
-Servo servoX, servoY; 
-int xPin = 13; 
+// --- TVC servos on two GPIOs ---
+Servo servoX, servoY;
+int xPin = 13;
 int yPin = 12;
 
-// --- PID constants for reaction wheel (yaw rate) --- 
-const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f; 
-float prevError_rw = 0.0f, integral_rw = 0.0f; 
+// --- PID constants for reaction wheel (yaw rate) ---
+const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
+float prevError_rw = 0.0f, integral_rw = 0.0f;
 unsigned long prevTime_rw_micros = 0;
 
-// --- PID constants for TVC (roll/pitch) --- 
-const float Kp_tvc = 1.5f; 
-const float Ki_tvc = 0.1f; 
-const float Kd_tvc = 0.05f; // START VERY LOW (e.g., 0.0) AND TUNE UP 
-const float TVC_TIME_STEP_TARGET = 0.01f; 
-const float tvc_deadzone = 2.0f; 
+// --- PID constants for TVC (roll/pitch) ---
+const float Kp_tvc = 1.5f;
+const float Ki_tvc = 0.1f;
+const float Kd_tvc = 0.05f; // START VERY LOW (e.g., 0.0) AND TUNE UP
+const float TVC_TIME_STEP_TARGET = 0.01f;
+const float tvc_deadzone = 2.0f;
 const float LPF_BETA = 0.2f;
 
 // Variables for the LPF-based TVC PID
@@ -50,7 +50,7 @@ const float TVC_MAX_ANGLE_LIMIT = 90.0f;   // Max filtered angle before TVC ente
 const float TVC_RESET_ANGLE_LIMIT = 25.0f; // Angle below which TVC can exit limp mode
 bool tvc_in_limp_mode = false;
 
-// --- IMU object --- 
+// --- IMU object ---
 ICM_20948_SPI imu;
 
 // --- Helpers ---
@@ -64,51 +64,19 @@ static float lpf(float prev_lpf_val, float current_measurement, float beta)
   return beta * current_measurement + (1.0f - beta) * prev_lpf_val;
 }
 
-std::array<std::pair<int, int>, 163> lookupTable = {{
-    { -24, 0 }, { -24, 1 }, { -24, 2 }, { -24, 3 }, { -24, 4 },
-    { -23, 5 }, { -23, 6 }, { -23, 7 }, { -23, 8 }, { -23, 9 },
-    { -22, 10 }, { -22, 11 }, { -22, 12 }, { -22, 13 }, { -22, 14 },
-    { -21, 15 }, { -21, 16 }, { -21, 17 }, { -21, 18 }, { -21, 19 },
-    { -20, 20 }, { -20, 21 }, { -20, 22 }, { -20, 23 }, { -20, 24 },
-    { -19, 25 }, { -19, 26 }, { -19, 27 }, { -19, 28 }, { -19, 29 },
-    { -18, 30 }, { -18, 31 }, { -18, 32 }, { -18, 33 }, { -18, 34 },
-    { -17, 35 }, { -17, 36 }, { -17, 37 }, { -17, 38 }, { -17, 39 },
-    { -16, 40 }, { -16, 41 }, { -16, 42 }, { -16, 43 }, { -16, 44 },
-    { -15, 45 }, { -15, 46 }, { -15, 47 }, { -15, 48 }, { -15, 49 },
-    { -14, 50 }, { -13, 51 }, { -13, 52 }, { -13, 53 }, { -12, 54 },
-    { -12, 55 }, { -12, 56 }, { -11, 57 }, { -11, 58 }, { -11, 59 },
-    { -11, 60 }, { -10, 61 }, { -10, 62 }, { -10, 63 }, { -9, 64 },
-    { -9, 65 }, { -9, 66 }, { -8, 67 }, { -8, 68 }, { -8, 69 },
-    { -7, 70 }, { -7, 71 }, { -7, 72 }, { -6, 73 }, { -6, 74 },
-    { -5, 75 }, { -5, 76 }, { -5, 77 }, { -4, 78 }, { -4, 79 },
-    { -4, 80 }, { -3, 81 }, { -3, 82 }, { -3, 83 }, { -2, 84 },
-    { -2, 85 }, { -2, 86 }, { -1, 87 }, { -1, 88 }, { -1, 89 },
-    { 0, 90 }, { 0, 91 }, { 0, 92 }, { 1, 93 }, { 1, 94 },
-    { 1, 95 }, { 2, 96 }, { 2, 97 }, { 3, 98 }, { 3, 99 },
-    { 4, 100 }, { 4, 101 }, { 4, 102 }, { 4, 103 }, { 4, 104 },
-    { 5, 105 }, { 5, 106 }, { 5, 107 }, { 6, 108 }, { 6, 109 },
-    { 6, 110 }, { 7, 111 }, { 7, 112 }, { 7, 113 }, { 8, 114 },
-    { 8, 115 }, { 8, 116 }, { 8, 117 }, { 9, 118 }, { 9, 119 },
-    { 10, 120 }, { 10, 121 }, { 10, 122 }, { 10, 123 }, { 10, 124 },
-    { 11, 125 }, { 11, 126 }, { 11, 127 }, { 12, 128 }, { 12, 129 },
-    { 12, 130 }, { 13, 131 }, { 13, 132 }, { 13, 133 }, { 13, 134 },
-    { 14, 135 }, { 14, 136 }, { 14, 137 }, { 14, 138 }, { 14, 139 },
-    { 15, 140 }, { 15, 141 }, { 15, 142 }, { 15, 143 }, { 15, 144 },
-    { 15, 145 }, { 15, 146 }, { 15, 147 }, { 15, 148 }, { 15, 149 },
-    { 16, 150 }, { 16, 151 }, { 16, 152 }, { 16, 153 }, { 16, 154 },
-    { 16, 155 }, { 16, 156 }, { 16, 157 }, { 16, 158 }, { 16, 159 },
-    { 16, 160 }, { 16, 161 }, { 16, 162 }
-}};
-
+std::array<std::pair<float, int>, 104> lookupTable = {{{-24.41268189f, 0}, {-24.28854995f, 1}, {-24.16046271f, 2}, {-24.02842410f, 3}, {-23.89243857f, 4}, {-23.75251114f, 5}, {-23.60864744f, 6}, {-23.46085373f, 7}, {-23.30913695f, 8}, {-23.15350475f, 9}, {-22.99396551f, 10}, {-22.83052839f, 11}, {-22.66320337f, 12}, {-22.49200124f, 13}, {-22.31693369f, 14}, {-22.13801328f, 15}, {-21.95525354f, 16}, {-21.76866891f, 17}, {-21.57827483f, 18}, {-21.38408778f, 19}, {-21.18612522f, 20}, {-20.98440571f, 21}, {-20.77894887f, 22}, {-20.56977542f, 23}, {-20.35690722f, 24}, {-20.14036724f, 25}, {-19.92017963f, 26}, {-19.69636971f, 27}, {-19.46896396f, 28}, {-19.23799010f, 29}, {-19.00347703f, 30}, {-18.76545489f, 31}, {-18.52395503f, 32}, {-18.27901006f, 33}, {-18.03065382f, 34}, {-17.77892140f, 35}, {-17.52384916f, 36}, {-17.26547469f, 37}, {-17.00383684f, 38}, {-16.73897574f, 39}, {-16.47093273f, 40}, {-16.19975045f, 41}, {-15.92547275f, 42}, {-15.64814475f, 43}, {-15.36781278f, 44}, {-15.08452442f, 45}, {-14.79832847f, 46}, {-14.50927495f, 47}, {-14.21741506f, 48}, {-13.92280124f, 49}, {-13.62548707f, 50}, {-13.32552732f, 51}, {-13.02297795f, 52}, {-12.71789603f, 53}, {-12.41033979f, 54}, {-12.10036858f, 55}, {-11.78804288f, 56}, {-11.47342424f, 57}, {-11.15657532f, 58}, {-10.83755985f, 59}, {-10.51644261f, 60}, {-10.19328945f, 61}, {-9.86816725f, 62}, {-9.54114388f, 63}, {-9.21228828f, 64}, {-8.88167033f, 65}, {-8.54936094f, 66}, {-8.21543198f, 67}, {-7.87995629f, 68}, {-7.54300767f, 69}, {-7.20466084f, 70}, {-6.86499150f, 71}, {-6.52407626f, 72}, {-6.18199264f, 73}, {-5.83881910f, 74}, {-5.49463501f, 75}, {-5.14952061f, 76}, {-4.80355709f, 77}, {-4.45682651f, 78}, {-4.10941183f, 79}, {-3.76139690f, 80}, {-3.41286647f, 81}, {-3.06390618f, 82}, {-2.71460257f, 83}, {-2.36504307f, 84}, {-2.01531601f, 85}, {-1.66551062f, 86}, {-1.31571704f, 87}, {-0.96602633f, 88}, {-0.61653047f, 89}, {-0.26732235f, 90}, {0.08150420f, 91}, {0.42985439f, 92}, {0.77763248f, 93}, {1.12474179f, 94}, {1.47108464f, 95}, {1.81656237f, 96}, {2.16107532f, 97}, {2.50452281f, 98}, {2.84680314f, 99}, {3.18781357f, 100}, {3.52745030f, 101}, {3.86560846f, 102}, {4.20218208f, 103}}};
 
 // right now 70 degrees is index 0 in the lookup table (can shift offset if needed)
 int getTheta4(int theta2)
 {
   int offset = 70;
-  int index; 
-  if (theta2 > 110) {
+  int index;
+  if (theta2 > 110)
+  {
     index = 110 - offset;
-  } else if (theta2 < 70) {
+  }
+  else if (theta2 < 70)
+  {
     index = 70 - offset;
   }
   else
@@ -179,22 +147,22 @@ void setup()
   }
   Serial.println("ICM-20948 DMP ready.");
 
-  servoX.setPeriodHertz(50); 
-  servoY.setPeriodHertz(50); 
-  servoX.attach(xPin, 500, 2400); 
-  servoY.attach(yPin, 500, 2400); 
-  servoX.write(90); 
+  servoX.setPeriodHertz(50);
+  servoY.setPeriodHertz(50);
+  servoX.attach(xPin, 500, 2400);
+  servoY.attach(yPin, 500, 2400);
+  servoX.write(90);
   servoY.write(90);
 
-  ledcAttach(escPin, escFreq, escRes); 
-  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds..."); 
-  ledcWrite(escPin, usToDuty(1500)); 
-  delay(5000); 
+  ledcAttach(escPin, escFreq, escRes);
+  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
+  ledcWrite(escPin, usToDuty(1500));
+  delay(5000);
   Serial.println("ESC presumed armed.");
 
-  tvc_prev_time_micros = micros(); 
-  prevTime_rw_micros = micros(); 
-  Serial.println("Setup complete."); 
+  tvc_prev_time_micros = micros();
+  prevTime_rw_micros = micros();
+  Serial.println("Setup complete.");
 }
 
 // --- Main loop ---
