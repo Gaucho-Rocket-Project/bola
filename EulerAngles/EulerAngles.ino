@@ -284,7 +284,7 @@ void loop()
           servo_command_angle_calculated[axis] = 90.0f + round(pid_correction);
 
           // Apply the correction formula to get the actual servo angle needed
-          corrected_servo_angle[axis] = correctServoAngle(servo_command_angle_calculated[axis]);
+          corrected_servo_angle[axis] = getTheta4(servo_command_angle_calculated[axis]);
         }
         tvc_prev_error[axis] = tvc_error[axis];
       }
