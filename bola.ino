@@ -1,68 +1,41 @@
-// === SPI VERSION with TVC + Reaction‐Wheel Control ===
-// Make sure to uncomment "#define ICM_20948_USE_DMP" in ICM_20948_C.h
 #include <SPI.h>
 #include <ESP32Servo.h>
-#include "ICM_20948.h" // Your ICM_20948 library header
-#include <cmath> 
-#include <iostream>
-#include <utility> 
-#include <vector>
-#include <array> // added for lookup table
+#include "ICM_20948.h"
+#include "BluetoothSerial.h"
 
 // --- SPI pins for VSPI (default) ---
 #define SPI_SCLK 18
 #define SPI_MISO 19
 #define SPI_MOSI 23
-#define CS_PIN 5 // Chip‐select for ICM-20948
+#define CS_PIN    5  // Chip‐select for ICM-20948
 
 // --- Reaction‐wheel ESC on GPIO27 ---
-const int escPin = 27;
-const int escFreq = 50; // 50 Hz for typical ESC PWM
-const int escRes = 16;  // 16-bit PWM resolution
+const int  escPin  = 27;
+const int  escFreq = 50;  // 50 Hz
+const int  escRes  = 16;  // 16-bit
+
+// -- MoI values --1
+const float I_rocket = 0.002395f; 
+const float I_wheel = ;
+
 
 // --- TVC servos on two GPIOs ---
 Servo servoX, servoY;
-int xPin = 13;
-int yPin = 12;
+int xPin = 13;  // if no movement, try 25
+int yPin = 12;  // or 26
 
 // --- PID constants for reaction wheel (yaw rate) ---
-const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
-float prevError_rw = 0.0f, integral_rw = 0.0f;
-unsigned long prevTime_rw_micros = 0;
+const float Kp_rw = 3.3125, Ki_rw = 0.2, Kd_rw = 1.3;
+float prevError = 0, integral = 0;
+unsigned long prevTime = 0;
 
 // --- PID constants for TVC (roll/pitch) ---
-const float Kp_tvc = 1.5f;
-const float Ki_tvc = 0.1f;
-const float Kd_tvc = 0.05f; // START VERY LOW (e.g., 0.0) AND TUNE UP
-const float TVC_TIME_STEP_TARGET = 0.01f;
-const float tvc_deadzone = 2.0f;
-const float LPF_BETA = 0.2f;
+const float Kp_tvc = 3.3125, Ki_tvc = 0.2, Kd_tvc = 1.3;
+const float TIME_STEP = 0.01;
+float initial_I[2] = {0,0}, current_I[2];
+float initial_ang[2] = {0,0}, current_ang[2];
 
-// Variables for the LPF-based TVC PID
-float current_roll_lpf = 0.0f;      
-float current_pitch_lpf = 0.0f;
-float tvc_error_integral[2] = {0.0f, 0.0f};
-float tvc_prev_error[2] = {0.0f, 0.0f};
-unsigned long tvc_prev_time_micros = 0;
-
-// TVC Limp Mode (Shutdown)
-const float TVC_MAX_ANGLE_LIMIT = 30.0f; // Max filtered angle before TVC enters limp mode
-const float TVC_RESET_ANGLE_LIMIT = 25.0f; // Angle below which TVC can exit limp mode
-bool tvc_in_limp_mode = false;
-
-// --- IMU object ---
-ICM_20948_SPI imu;
-
-// --- Helpers ---
-uint32_t usToDuty(int us) {
-  return (uint32_t)us * ((1UL << escRes) - 1) / 20000;
-}
-
-static float lpf(float prev_lpf_val, float current_measurement, float beta) {
-  return beta * current_measurement + (1.0f - beta) * prev_lpf_val;
-}
-
-std::array<std::pair<int, int>, 163> lookupTable = {{
+const std::array<std::pair<int, int>, 163> lookupTable = {{
     { -24, 0 }, { -24, 1 }, { -24, 2 }, { -24, 3 }, { -24, 4 },
     { -23, 5 }, { -23, 6 }, { -23, 7 }, { -23, 8 }, { -23, 9 },
     { -22, 10 }, { -22, 11 }, { -22, 12 }, { -22, 13 }, { -22, 14 },
@@ -98,66 +71,175 @@ std::array<std::pair<int, int>, 163> lookupTable = {{
     { 16, 160 }, { 16, 161 }, { 16, 162 }
 }};
 
+// --- IMU object ---
+ICM_20948_SPI imu;
 
-//right now 70 degrees is index 0 in the lookup table (can shift offset if needed)
-int getTheta4(int theta2) {
-  int offset = 70;
-  int index; 
-  if (theta2 > 110) {
-    index = 110 - offset;
-  } else if (theta2 < 70) {
-    index = 70 - offset;
-  } else {
-    index = theta2 - offset;
-  }
-  return lookupTable[index].second;
+// --- Helpers ---
+uint32_t usToDuty(int us) {
+  // maps [0..20000µs] to [0..(1<<escRes)-1]
+  return (uint32_t)us * ((1UL<<escRes)-1) / 20000;
 }
 
+float calcI(int idx) {
+  return initial_I[idx] + current_ang[idx]*TIME_STEP;
+}
+
+float calcD(int idx) {
+  return (current_ang[idx] - initial_ang[idx]) / TIME_STEP;
+}
+
+float pidTVC(int idx) {
+  current_I[idx] = calcI(idx);
+  float D = calcD(idx);
+  if (idx == 0)
+    return Kp_tvc*current_ang[0] + Ki_tvc*current_I[0] + Kd_tvc*D;
+  else
+    return Kp_tvc*current_ang[1] + Ki_tvc*current_I[1] + Kd_tvc*D;
+}
+
+// ---------------------------------------------------------------------- //
+
+
+// Globals
+
+// Bluetooth
+BluetoothSerial SerialBT;
+char btCmd;
+bool launchSequence = false;  // main logic flag
+
+// Step 1 and 2 Globals
+float yawRate;
+const float CRITICAL_ANGLE = 45.0;  // Can be changed
+
+// Step 5 Timing Globals
+unsigned long   lastMotorTime = 0,
+                motorInterval = 1000;  // ms between motor triggers
+const int       legPin = 14;           // leg pin
+
+// Function Declarations
+void handleBT(); // Bluetooth Handling
+void readAngle(); // Step 1
+bool checkCriticalAngle(); // Step 2 (I'm not completely sure what this is)
+void computeAndWritePID(); // Step 3 and 4
+unsigned long readTime(); // Step 5
+bool checkTime(unsigned long, unsigned long); // Step 6
+void triggerMotor(); // Step 7
+void triggerLegs(); // Step 8
 
 // --- Setup ---
 void setup() {
   Serial.begin(115200);
-  while (!Serial);
-  Serial.println("Setup starting...");
-
+  while(!Serial);
+  // start SPI for IMU
   SPI.begin(SPI_SCLK, SPI_MISO, SPI_MOSI);
 
-  Serial.println("Initializing IMU DMP...");
+  // init IMU DMP
   while (imu.begin(CS_PIN, SPI) != ICM_20948_Stat_Ok) {
-    Serial.println("IMU.begin failed; retrying...");
+    Serial.println("IMU init failed; retrying...");
     delay(500);
   }
-  if (imu.initializeDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: initializeDMP failed!"); while (1); }
-  if (imu.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableDMPSensor failed!"); while (1); }
-  if (imu.setDMPODRrate(DMP_ODR_Reg_Quat6, 1) != ICM_20948_Stat_Ok) { Serial.println("FATAL: setDMPODRrate failed!"); while (1); }
-  if (imu.enableFIFO() != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableFIFO failed!"); while (1); }
-  if (imu.enableDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: enableDMP failed!"); while (1); }
-  if (imu.resetDMP() != ICM_20948_Stat_Ok) { Serial.println("FATAL: resetDMP failed!"); while (1); }
-  if (imu.resetFIFO() != ICM_20948_Stat_Ok) { Serial.println("FATAL: resetFIFO failed!"); while (1); }
-  Serial.println("ICM-20948 DMP ready.");
+  if ( imu.initializeDMP()  != ICM_20948_Stat_Ok ||
+       imu.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) != ICM_20948_Stat_Ok ||
+       imu.setDMPODRrate(DMP_ODR_Reg_Quat6, 0) != ICM_20948_Stat_Ok ||
+       imu.enableFIFO() != ICM_20948_Stat_Ok ||
+       imu.enableDMP() != ICM_20948_Stat_Ok ||
+       imu.resetDMP()  != ICM_20948_Stat_Ok ||
+       imu.resetFIFO() != ICM_20948_Stat_Ok ) {
+    Serial.println("Failed to configure DMP");
+    while(1);
+  }
+  Serial.println("ICM-20948 DMP ready");
 
+  // --- Bluetooth ---
+  SerialBT.begin("Esp32-BT");
+  Serial.println("Bluetooth up: device name = Esp32-BT");
+
+
+  // TVC servos
   servoX.setPeriodHertz(50);
   servoY.setPeriodHertz(50);
   servoX.attach(xPin, 500, 2400);
   servoY.attach(yPin, 500, 2400);
-  servoX.write(90);
-  servoY.write(90);
 
+  // Reaction-wheel ESC PWM
   ledcAttach(escPin, escFreq, escRes);
-  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
+  // arm ESC neutral
   ledcWrite(escPin, usToDuty(1500));
   delay(5000);
-  Serial.println("ESC presumed armed.");
 
-  tvc_prev_time_micros = micros();
-  prevTime_rw_micros = micros();
-  Serial.println("Setup complete.");
+  pinMode(legPin, OUTPUT);
+  digitalWrite(legPin, LOW);
+
+  prevTime = millis();
 }
 
-// --- Main loop ---
 void loop() {
-  unsigned long loop_start_micros = micros();
+  handleBT();
 
+  if (!launchSequence) {
+    delay(50);
+    return;
+  }
+
+  // read the angle
+  readAngle();
+
+  // check the critical angle
+  // Please change this critical angle part I'm not completely sure what it's supposed to do and I couldn't find it in the repo
+  if (checkCriticalAngle()) {
+    Serial.println("Critical angle reached");
+
+    // 1) Center TVC servos
+    servoX.write(90);
+    servoY.write(90);
+
+    // 2) Neutralize reaction-wheel / main ESC
+    ledcWrite(escPin, usToDuty(1500));
+    return;
+  }
+
+
+  computeAndWritePID();
+
+  // grab the current timestamp
+  unsigned long now = readTime();
+
+  // fire the 2nd motor
+  if (checkTime(lastMotorTime, motorInterval)) {
+    triggerMotor();
+    lastMotorTime = now;
+    // fire leg actuators
+    triggerLegs();
+  }
+
+
+    // --- Maintain loop rate ---
+  long loop_duration_micros = micros() - loop_start_micros;
+  long delay_needed_micros = static_cast<long>(TVC_TIME_STEP_TARGET * 1e6f) - loop_duration_micros;
+  if (delay_needed_micros > 0) {
+    delayMicroseconds(delay_needed_micros);
+  }
+}
+
+// ===== FUNCTION DEFINITIONS =====
+
+void handleBT() {
+  if (SerialBT.available()) {
+    btCmd = SerialBT.read();
+    switch (btCmd) {
+      case '1':
+        Serial.println("BT: start launch sequence");
+        launchSequence = true;
+        break;
+      case '0':
+        Serial.println("BT: stop launch sequence");
+        launchSequence = false;
+        break;
+    }
+  }
+}
+
+void readAngle() {
   // 1) TVC control using DMP Game Rotation Vector
   icm_20948_DMP_data_t dmp_data;
   if (imu.readDMPdataFromFIFO(&dmp_data) == ICM_20948_Stat_Ok &&
@@ -265,30 +347,66 @@ void loop() {
     imu.getAGMT();
     float yawRate = imu.gyrZ();
     float targetYawRate = 0.0f;
-    unsigned long current_rw_micros = micros();
-    float dt_rw = (prevTime_rw_micros == 0) ? TVC_TIME_STEP_TARGET : static_cast<float>(current_rw_micros - prevTime_rw_micros) * 1e-6f;
-    if (dt_rw <= 0.00001f) { dt_rw = TVC_TIME_STEP_TARGET; }
-    prevTime_rw_micros = current_rw_micros;
+    
+    // — 2) Reaction-wheel linear function —
+    float u = (yawRate*I_rocket)/(I_wheel);
+    int pulse = constrain(1500 - int(u), 1000, 2000);
+    ledcWrite(escPin, usToDuty(pulse));
 
-    float error_rw = targetYawRate - yawRate;
-    integral_rw += error_rw * dt_rw;
-    float derivative_rw = (dt_rw > 0.00001f) ? (error_rw - prevError_rw) / dt_rw : 0.0f;
-    prevError_rw = error_rw;
-    float pid_output_rw = Kp_rw * error_rw + Ki_rw * integral_rw + Kd_rw * derivative_rw;
-    int pulse_rw = static_cast<int>(round(1500.0f - pid_output_rw));
-    pulse_rw = constrain(pulse_rw, 1000, 2000);
-    ledcWrite(escPin, usToDuty(pulse_rw));
   } else if (tvc_in_limp_mode) {
-    // If TVC is in limp mode, set reaction wheel to neutral for safety
-    ledcWrite(escPin, usToDuty(1500));
+    ledcWrite(escPin, usToDuty(1500)); // If TVC is in limp mode, set reaction wheel to neutral for safety
     // Serial.println("Reaction Wheel Neutral due to TVC Limp Mode.");
   }
+}
 
+bool checkCriticalAngle() {
+  return fabs(current_ang[0]) > CRITICAL_ANGLE
+      || fabs(current_ang[1]) > CRITICAL_ANGLE;
+}
 
-  // --- Maintain loop rate ---
-  long loop_duration_micros = micros() - loop_start_micros;
-  long delay_needed_micros = static_cast<long>(TVC_TIME_STEP_TARGET * 1e6f) - loop_duration_micros;
-  if (delay_needed_micros > 0) {
-    delayMicroseconds(delay_needed_micros);
+void computeAndWritePID() {
+  // compute PID for each axis, map to [60..120]° around 90
+  float outX = constrain(pidTVC(0), -30, 30) + 90;
+  float outY = constrain(pidTVC(1), -30, 30) + 90;
+
+  // write servos
+  servoX.write(outX);
+  servoY.write(outY);
+
+  // update I/D state for next iteration
+  for (int i = 0; i < 2; i++) {
+    initial_I[i]   = current_I[i];
+    initial_ang[i] = current_ang[i];
   }
+}
+
+
+//right now 70 degrees is index 0 in the lookup table (can shift offset if needed)
+int getTheta4(int theta2) {
+  int offset = 70;
+  int index; 
+  if (theta2 > 110) {
+    index = 110 - offset;
+  } else if (theta2 < 70) {
+    index = 70 - offset;
+  } else {
+    index = theta2 - offset;
+  }
+  return lookupTable[index].second;
+}
+
+unsigned long readTime() {
+  return millis();
+}
+
+bool checkTime(unsigned long start, unsigned long interval) {
+  return (millis() - start) >= interval;
+}
+
+void triggerMotor() {
+  // e.g. ledcWrite(escPin, usToDuty(2000)); 
+}
+
+void triggerLegs() {
+  // e.g. digitalWrite(legPin, HIGH); delay(100); digitalWrite(legPin, LOW);
 }
