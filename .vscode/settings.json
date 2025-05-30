@@ -1,8 +1,0 @@
-{
-    "files.associations": {
-        "ostream": "cpp",
-        "compare": "cpp",
-        "cstdint": "cpp",
-        "*.inc": "cpp"
-    }
-}
