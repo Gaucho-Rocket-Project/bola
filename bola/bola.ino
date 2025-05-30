@@ -54,6 +54,9 @@ bool tvc_in_limp_mode = false;
 // --- IMU object ---
 ICM_20948_SPI imu;
 
+// --- Bias offsets ---
+float roll_bias = 0, yaw_bias = 0;
+
 // Bluetooth
 BluetoothSerial SerialBT;
 char btCmd;
@@ -168,6 +171,32 @@ void setup() {
   }
   Serial.println("ICM-20948 DMP ready.");
 
+  // Calibrate bias axes (vertical stance)
+  Serial.println("Calibrating biases... hold sensor vertical");
+  const int N = 200;
+  float sum_r = 0, sum_y = 0;
+  for(int i=0; i<N; i++){
+    icm_20948_DMP_data_t d;
+    if(imu.readDMPdataFromFIFO(&d)==ICM_20948_Stat_Ok && (d.header & DMP_header_bitmap_Quat6)){
+      double q1=d.Quat6.Data.Q1/1073741824.0, q2=d.Quat6.Data.Q2/1073741824.0, q3=d.Quat6.Data.Q3/1073741824.0;
+      double sumsq = q1*q1+q2*q2+q3*q3;
+      double q0 = (sumsq<1)? sqrt(1-sumsq):0;
+      // roll
+      double r0 = 2*(q0*q1+q2*q3), r1=1-2*(q1*q1+q2*q2);
+      float roll = atan2(r0,r1)*180.0/PI;
+      // yaw
+      double y0 = 2*(q0*q3+q1*q2), y1=1-2*(q2*q2+q3*q3);
+      float yaw  = atan2(y0,y1)*180.0/PI;
+      sum_r += roll;
+      sum_y += yaw;
+    }
+    delay(10);
+  }
+  roll_bias = sum_r/N;
+  yaw_bias  = sum_y/N;
+  Serial.printf("Biases: roll=%.1f°, yaw=%.1f°\n", roll_bias, yaw_bias);
+
+
   servoX.setPeriodHertz(50);
   servoY.setPeriodHertz(50);
   servoX.attach(xPin, 500, 2400);
@@ -222,8 +251,8 @@ void loop() {
     float current_yaw_raw = atan2(t0_yaw, t1_yaw) * (180.0 / PI);
     // ---- END OF EULER ANGLE CONVERSION ----
 
-    current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA);
-    current_yaw_lpf = lpf(current_yaw_lpf, current_yaw_raw, LPF_BETA);
+    current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA) - roll_bias;
+    current_yaw_lpf  = lpf(current_yaw_lpf,  current_yaw_raw,  LPF_BETA) - yaw_bias;
 
     // ---------- TVC Limp Mode Logic ------------------------------
     if (!tvc_in_limp_mode && (fabs(current_roll_lpf) > TVC_MAX_ANGLE_LIMIT || fabs(current_yaw_lpf) > TVC_MAX_ANGLE_LIMIT)) {
