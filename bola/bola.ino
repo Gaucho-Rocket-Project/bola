@@ -205,20 +205,43 @@ void setup() {
  const int N = 200;
  float sum_r = 0, sum_y = 0;
  for(int i=0; i<N; i++){
-   icm_20948_DMP_data_t d;
-   if(imu.readDMPdataFromFIFO(&d)==ICM_20948_Stat_Ok && (d.header & DMP_header_bitmap_Quat6)){
-     double q1=d.Quat6.Data.Q1/1073741824.0, q2=d.Quat6.Data.Q2/1073741824.0, q3=d.Quat6.Data.Q3/1073741824.0;
-     double sumsq = q1*q1+q2*q2+q3*q3;
-     double q0 = (sumsq<1)? sqrt(1-sumsq):0;
-     // roll
-     double r0 = 2*(q0*q1+q2*q3), r1=1-2*(q1*q1+q2*q2);
-     float roll = atan2(r0,r1)*180.0/PI;
-     // yaw
-     double y0 = 2*(q0*q3+q1*q2), y1=1-2*(q2*q2+q3*q3);
-     float yaw  = atan2(y0,y1)*180.0/PI;
-     sum_r += roll;
-     sum_y += yaw;
-   }
+   // 1) TVC control using DMP Game Rotation Vector
+  icm_20948_DMP_data_t dmp_data;
+  if (imu.readDMPdataFromFIFO(&dmp_data) == ICM_20948_Stat_Ok && (dmp_data.header & DMP_header_bitmap_Quat6))
+  {
+    double q1 = static_cast<double>(dmp_data.Quat6.Data.Q1) / 1073741824.0; // X-axis rotation component
+    double q2 = static_cast<double>(dmp_data.Quat6.Data.Q2) / 1073741824.0; // Y-axis rotation component
+    double q3 = static_cast<double>(dmp_data.Quat6.Data.Q3) / 1073741824.0; // Z-axis rotation component
+
+    double q_sum_sq = q1 * q1 + q2 * q2 + q3 * q3;
+    double q0 = (q_sum_sq < 1.0) ? sqrt(1.0 - q_sum_sq) : 0.0;
+
+    // Apply quaternion correction for 90-degree rotation around Y-axis
+    const double sqrt2_over_2 = sqrt(2.0) / 2.0;
+    double q0_corrected = sqrt2_over_2 * (q0 + q2);
+    double q1_corrected = sqrt2_over_2 * (q1 - q3);
+    double q2_corrected = sqrt2_over_2 * (q2 - q0);
+    double q3_corrected = sqrt2_over_2 * (q3 - q1);
+
+    // Use corrected quaternions for Euler angle conversion
+    // Roll (around IMU X-axis / vehicle's longitudinal axis)
+    double t0_roll = 2.0 * (q0_corrected * q1_corrected + q2_corrected * q3_corrected);
+    double t1_roll = 1.0 - 2.0 * (q1_corrected * q1_corrected + q2_corrected * q2_corrected);
+    float current_roll_raw = atan2(t0_roll, t1_roll) * (180.0 / PI);
+
+    // Pitch (around IMU Y-axis / vehicle's transverse axis)
+    double t2_pitch = 2.0 * (q0_corrected * q2_corrected - q3_corrected * q1_corrected);
+    if (t2_pitch > 1.0)
+      t2_pitch = 1.0;
+    if (t2_pitch < -1.0)
+      t2_pitch = -1.0;
+    float current_pitch_raw = asin(t2_pitch) * (180.0 / PI);
+
+    current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA);
+    current_yaw_lpf = lpf(current_yaw_lpf, current_pitch_raw, LPF_BETA);
+
+    // Rest of your code...
+  }
    delay(10);
  }
  roll_bias = sum_r/N;
