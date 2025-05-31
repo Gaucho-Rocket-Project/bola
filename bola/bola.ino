@@ -1,4 +1,4 @@
-// === SPI VERSION with TVC + Reaction‐Wheel Control ===
+// === SPI VERSION with TVC + Reaction‐Wheel Control + Parachute & Landing‐Legs Deployment ===
 // Make sure to uncomment "#define ICM_20948_USE_DMP" in ICM_20948_C.h
 #include <SPI.h>
 #include <ESP32Servo.h>
@@ -7,7 +7,7 @@
 #include <iostream>
 #include <utility>
 #include <vector>
-#include <array>  // added for lookup table
+#include <array>   // for lookup table
 #include "BluetoothSerial.h"
 
 // --- SPI pins for VSPI (default) ---
@@ -16,14 +16,21 @@
 #define SPI_MOSI 23
 #define CS_PIN    5  // Chip‐select for ICM-20948
 
-// --- Reaction‐wheel ESC on GPIO27 ---
+// --- Reaction‐wheel ESC on GPIO0 ---
 const int escPin  = 0;
-const int escFreq = 50;  // 50 Hz for typical ESC PWM
+const int escFreq = 50;  // 50 Hz for ESC PWM
 const int escRes  = 16;  // 16-bit PWM resolution
 
-const int parachutePin = 2;
+// --- Parachute & Landing‐Legs (micro‐servos) ---
+const int parachutePin    = 2;  // GPIO2, micro‐servo for parachute
+const int landinglegsPin  = 4;  // GPIO4, micro‐servo for landing‐legs
 
-const int landinglegsPin = 4;
+Servo servoParachute;
+Servo servoLegs;
+
+// Flags to ensure single‐time deployment
+bool parachuteDeployed = false;
+bool legsDeployed      = false;
 
 // --- TVC servos on two GPIOs ---
 Servo servoX, servoY;
@@ -32,7 +39,7 @@ int yPin = 32;
 
 // --- PID constants for reaction wheel (yaw rate) ---
 const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
-float prevError_rw   = 0.0f, 
+float prevError_rw   = 0.0f,
       integral_rw    = 0.0f;
 unsigned long prevTime_rw_micros = 0;
 
@@ -86,22 +93,38 @@ static float lpf(float prev_lpf_val, float current_measurement, float beta) {
   return beta * current_measurement + (1.0f - beta) * prev_lpf_val;
 }
 
-std::array<std::pair<int, int>, 163> lookupTable = { { { -24, 0 }, { -24, 1 }, { -24, 2 }, { -24, 3 }, { -24, 4 },
-  { -23, 5 }, { -23, 6 }, { -23, 7 }, { -23, 8 }, { -23, 9 }, { -22, 10 }, { -22, 11 }, { -22, 12 }, { -22, 13 }, { -22, 14 },
-  { -21, 15 }, { -21, 16 }, { -21, 17 }, { -21, 18 }, { -21, 19 }, { -20, 20 }, { -20, 21 }, { -20, 22 }, { -20, 23 }, { -20, 24 },
-  { -19, 25 }, { -19, 26 }, { -19, 27 }, { -19, 28 }, { -19, 29 }, { -18, 30 }, { -18, 31 }, { -18, 32 }, { -18, 33 }, { -18, 34 },
-  { -17, 35 }, { -17, 36 }, { -17, 37 }, { -17, 38 }, { -17, 39 }, { -16, 40 }, { -16, 41 }, { -16, 42 }, { -16, 43 }, { -16, 44 },
-  { -15, 45 }, { -15, 46 }, { -15, 47 }, { -15, 48 }, { -15, 49 }, { -14, 50 }, { -13, 51 }, { -13, 52 }, { -13, 53 }, { -12, 54 },
-  { -12, 55 }, { -12, 56 }, { -11, 57 }, { -11, 58 }, { -11, 59 }, { -11, 60 }, { -10, 61 }, { -10, 62 }, { -10, 63 }, { -9, 64 },
-  { -9, 65 }, { -9, 66 }, { -8, 67 }, { -8, 68 }, { -8, 69 }, { -7, 70 }, { -7, 71 }, { -7, 72 }, { -6, 73 }, { -6, 74 }, { -5, 75 },
-  { -5, 76 }, { -5, 77 }, { -4, 78 }, { -4, 79 }, { -4, 80 }, { -3, 81 }, { -3, 82 }, { -3, 83 }, { -2, 84 }, { -2, 85 }, { -2, 86 },
-  { -1, 87 }, { -1, 88 }, { -1, 89 }, { 0, 90 }, { 0, 91 }, { 0, 92 }, { 1, 93 }, { 1, 94 }, { 1, 95 }, { 2, 96 }, { 2, 97 }, { 3, 98 },
-  { 3, 99 }, { 4, 100 }, { 4, 101 }, { 4, 102 }, { 4, 103 }, { 4, 104 }, { 5, 105 }, { 5, 106 }, { 5, 107 }, { 6, 108 }, { 6, 109 },
-  { 6, 110 }, { 7, 111 }, { 7, 112 }, { 7, 113 }, { 8, 114 }, { 8, 115 }, { 8, 116 }, { 8, 117 }, { 9, 118 }, { 9, 119 }, { 10, 120 },
-  { 10, 121 }, { 10, 122 }, { 10, 123 }, { 10, 124 }, { 11, 125 }, { 11, 126 }, { 11, 127 }, { 12, 128 }, { 12, 129 }, { 12, 130 },
-  { 13, 131 }, { 13, 132 }, { 13, 133 }, { 13, 134 }, { 14, 135 }, { 14, 136 }, { 14, 137 }, { 14, 138 }, { 14, 139 }, { 15, 140 },
-  { 15, 141 }, { 15, 142 }, { 15, 143 }, { 15, 144 }, { 15, 145 }, { 15, 146 }, { 15, 147 }, { 15, 148 }, { 15, 149 }, { 16, 150 },
-  { 16, 151 }, { 16, 152 }, { 16, 153 }, { 16, 154 }, { 16, 155 }, { 16, 156 }, { 16, 157 }, { 16, 158 }, { 16, 159 }, { 16, 160 },
+std::array<std::pair<int, int>, 163> lookupTable = { { 
+  { -24, 0 }, { -24, 1 }, { -24, 2 }, { -24, 3 }, { -24, 4 },
+  { -23, 5 }, { -23, 6 }, { -23, 7 }, { -23, 8 }, { -23, 9 },
+  { -22, 10 }, { -22, 11 }, { -22, 12 }, { -22, 13 }, { -22, 14 },
+  { -21, 15 }, { -21, 16 }, { -21, 17 }, { -21, 18 }, { -21, 19 },
+  { -20, 20 }, { -20, 21 }, { -20, 22 }, { -20, 23 }, { -20, 24 },
+  { -19, 25 }, { -19, 26 }, { -19, 27 }, { -19, 28 }, { -19, 29 },
+  { -18, 30 }, { -18, 31 }, { -18, 32 }, { -18, 33 }, { -18, 34 },
+  { -17, 35 }, { -17, 36 }, { -17, 37 }, { -17, 38 }, { -17, 39 },
+  { -16, 40 }, { -16, 41 }, { -16, 42 }, { -16, 43 }, { -16, 44 },
+  { -15, 45 }, { -15, 46 }, { -15, 47 }, { -15, 48 }, { -15, 49 },
+  { -14, 50 }, { -13, 51 }, { -13, 52 }, { -13, 53 }, { -12, 54 },
+  { -12, 55 }, { -12, 56 }, { -11, 57 }, { -11, 58 }, { -11, 59 }, { -11, 60 },
+  { -10, 61 }, { -10, 62 }, { -10, 63 }, { -9, 64 },
+  { -9, 65 }, { -9, 66 }, { -8, 67 }, { -8, 68 }, { -8, 69 },
+  { -7, 70 }, { -7, 71 }, { -7, 72 }, { -6, 73 }, { -6, 74 }, { -5, 75 },
+  { -5, 76 }, { -5, 77 }, { -4, 78 }, { -4, 79 }, { -4, 80 },
+  { -3, 81 }, { -3, 82 }, { -3, 83 }, { -2, 84 }, { -2, 85 }, { -2, 86 },
+  { -1, 87 }, { -1, 88 }, { -1, 89 }, { 0, 90 }, { 0, 91 }, { 0, 92 },
+  { 1, 93 }, { 1, 94 }, { 1, 95 }, { 2, 96 }, { 2, 97 }, { 3, 98 },
+  { 3, 99 }, { 4, 100 }, { 4, 101 }, { 4, 102 }, { 4, 103 }, { 4, 104 },
+  { 5, 105 }, { 5, 106 }, { 5, 107 }, { 6, 108 }, { 6, 109 }, { 6, 110 },
+  { 7, 111 }, { 7, 112 }, { 7, 113 }, { 8, 114 }, { 8, 115 }, { 8, 116 },
+  { 8, 117 }, { 9, 118 }, { 9, 119 }, { 10, 120 },
+  { 10, 121 }, { 10, 122 }, { 10, 123 }, { 10, 124 }, { 11, 125 },
+  { 11, 126 }, { 11, 127 }, { 12, 128 }, { 12, 129 }, { 12, 130 },
+  { 13, 131 }, { 13, 132 }, { 13, 133 }, { 13, 134 }, { 14, 135 },
+  { 14, 136 }, { 14, 137 }, { 14, 138 }, { 14, 139 }, { 15, 140 },
+  { 15, 141 }, { 15, 142 }, { 15, 143 }, { 15, 144 }, { 15, 145 },
+  { 15, 146 }, { 15, 147 }, { 15, 148 }, { 15, 149 }, { 16, 150 },
+  { 16, 151 }, { 16, 152 }, { 16, 153 }, { 16, 154 }, { 16, 155 },
+  { 16, 156 }, { 16, 157 }, { 16, 158 }, { 16, 159 }, { 16, 160 },
   { 16, 161 }, { 16, 162 } } };
 
 // right now 70 degrees is index 0 in the lookup table (can shift offset if needed)
@@ -149,8 +172,10 @@ void setup() {
     ;
   Serial.println("Setup starting...");
 
+  // Begin SPI for IMU
   SPI.begin(SPI_SCLK, SPI_MISO, SPI_MOSI);
 
+  // Initialize ICM-20948 DMP
   Serial.println("Initializing IMU DMP...");
   while (imu.begin(CS_PIN, SPI) != ICM_20948_Stat_Ok) {
     Serial.println("IMU.begin failed; retrying...");
@@ -218,7 +243,6 @@ void setup() {
       float yaw = atan2(y0, y1) * (180.0 / PI);
 
       // Pitch (Y-axis)
-      // pitch = asin(2*(q0*q2 - q1*q3))
       double argument = 2 * (q0*q2 - q1*q3);
       if (argument > 1.0) argument = 1.0;
       if (argument < -1.0) argument = -1.0;
@@ -236,6 +260,7 @@ void setup() {
   Serial.printf("Biases: roll=%.1f°, yaw=%.1f°, pitch=%.1f°\n",
                 roll_bias, yaw_bias, pitch_bias);
 
+  // Attach & center TVC servos
   servoX.setPeriodHertz(50);
   servoY.setPeriodHertz(50);
   servoX.attach(xPin, 500, 2400);
@@ -243,6 +268,13 @@ void setup() {
   servoX.write(90);
   servoY.write(90);
 
+  // Attach & stow parachute & legs servos at 0°
+  servoParachute.attach(parachutePin, 500, 2400);
+  servoLegs.attach(landinglegsPin, 500, 2400);
+  servoParachute.write(0);  // stowed
+  servoLegs.write(0);       // stowed
+
+  // Arm Reaction Wheel ESC (neutral 1500µs) for ~5s
   ledcAttach(escPin, escFreq, escRes);
   Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
   ledcWrite(escPin, usToDuty(1500));
@@ -256,22 +288,37 @@ void setup() {
 
 // --- Main loop ---
 void loop() {
-  // handleBT();
+  unsigned long loop_start_micros = micros();
+  unsigned long nowMs = millis();
+
+  // ---------- Timed Deployments ----------
+  // At 6000 ms → deploy parachute servo to 90°
+  if (!parachuteDeployed && nowMs >= 6000) {
+    servoParachute.write(90);
+    Serial.println(">>> Parachute deployed (servo to 90°) at 6.0s");
+    parachuteDeployed = true;
+  }
+  // At 6500 ms → deploy landing legs servo to 90°
+  if (!legsDeployed && nowMs >= 6500) {
+    servoLegs.write(90);
+    Serial.println(">>> Landing legs deployed (servo to 90°) at 6.5s");
+    legsDeployed = true;
+  }
+
+  // handleBT();  // (commented out in original code)
   // if (!launchSequence) {
   //   delay(50);
   //   return;
   // }
-
-  unsigned long loop_start_micros = micros();
 
   // 1) TVC control using DMP Game Rotation Vector
   icm_20948_DMP_data_t dmp_data;
   if (imu.readDMPdataFromFIFO(&dmp_data) == ICM_20948_Stat_Ok
       && (dmp_data.header & DMP_header_bitmap_Quat6)) {
 
-    double q1 = static_cast<double>(dmp_data.Quat6.Data.Q1) / 1073741824.0;  // X-axis rotation
-    double q2 = static_cast<double>(dmp_data.Quat6.Data.Q2) / 1073741824.0;  // Y-axis rotation
-    double q3 = static_cast<double>(dmp_data.Quat6.Data.Q3) / 1073741824.0;  // Z-axis rotation
+    double q1 = static_cast<double>(dmp_data.Quat6.Data.Q1) / 1073741824.0;
+    double q2 = static_cast<double>(dmp_data.Quat6.Data.Q2) / 1073741824.0;
+    double q3 = static_cast<double>(dmp_data.Quat6.Data.Q3) / 1073741824.0;
     double q_sum_sq = q1*q1 + q2*q2 + q3*q3;
     double q0 = (q_sum_sq < 1.0) ? sqrt(1.0 - q_sum_sq) : 0.0;
 
@@ -281,7 +328,6 @@ void loop() {
     float current_roll_raw = atan2(t0_roll, t1_roll) * (180.0 / PI);
 
     // ---- Compute Pitch (around IMU Y-axis) ----
-    // pitch = asin(2*(q0*q2 - q1*q3))
     double arg_p = 2.0 * (q0*q2 - q1*q3);
     if (arg_p > 1.0) arg_p = 1.0;
     if (arg_p < -1.0) arg_p = -1.0;
@@ -373,7 +419,6 @@ void loop() {
   }  // End of DMP data processing
 
   // 2) Reaction-wheel Controller
-  // If TVC is not in limp mode, run RW PID
   if (!tvc_in_limp_mode && imu.dataReady()) {
     imu.getAGMT();
     float yawRate = imu.gyrX();      // Z-axis gyro rate
