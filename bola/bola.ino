@@ -223,6 +223,8 @@ void setup()
   prevTime_rw_micros = micros();
 
   trigger_time = 13000 + millis();
+  landing_time = 16756 + millis();
+  apogee_time = 13496 + millis();
 
   Serial.println("Setup complete.");
 }
