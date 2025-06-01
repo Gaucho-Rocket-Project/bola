@@ -17,17 +17,13 @@
 #define CS_PIN    5  // Chip‐select for ICM-20948
 
 // --- Reaction‐wheel ESC on GPIO27 ---
-const int escPin  = 13;
-const int escFreq = 50;  // 50 Hz for typical ESC PWM
-const int escRes  = 16;  // 16-bit PWM resolution
-
-const int parachutePin = 2;
-
-const int landinglegsPin = 4;
+const int escPin = 4;
+const int escFreq = 50; // 50 Hz for typical ESC PWM
+const int escRes = 16;  // 16-bit PWM resolution
 
 // --- TVC servos on two GPIOs ---
 Servo servoX, servoY;
-int xPin = 33;
+int xPin = 2;
 int yPin = 32;
 
 // --- PID constants for reaction wheel (yaw rate) ---
@@ -244,13 +240,18 @@ void setup() {
   servoY.write(90);
 
   ledcAttach(escPin, escFreq, escRes);
-  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
-  ledcWrite(escPin, usToDuty(1500));
+  ledcAttach(leg_pin, 50, 16);
+  Serial.println("Arming Reaction Wheel ESC: Sending 1000us. Please wait ~5 seconds...");
+  ledcWrite(escPin, usToDuty(1000));
   delay(5000);
   Serial.println("ESC presumed armed.");
 
   tvc_prev_time_micros = micros();
-  prevTime_rw_micros   = micros();
+  prevTime_rw_micros = micros();
+  start_time = millis();
+
+  firstMotorTriggered = false;
+
   Serial.println("Setup complete.");
 }
 
