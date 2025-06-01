@@ -44,21 +44,21 @@ const float Kp_tvc = 1.5f;
 const float Ki_tvc = 0.1f;
 const float Kd_tvc = 0.05f;  // START VERY LOW (e.g., 0.0) AND TUNE UP
 const float TVC_TIME_STEP_TARGET = 0.01f;
-const float tvc_deadzone = 2.0f;
+const float tvc_deadzone = 1.0f;
 const float LPF_BETA = 0.2f;
 
 
 // Variables for the LPF-based TVC PID
 float current_roll_lpf = 0.0f;
-float current_yaw_lpf = 0.0f;
+float current_pitch_lpf = 0.0f;
 float tvc_error_integral[2] = { 0.0f, 0.0f };
 float tvc_prev_error[2] = { 0.0f, 0.0f };
 unsigned long tvc_prev_time_micros = 0;
 
 
 // TVC Limp Mode (Shutdown)
-const float TVC_MAX_ANGLE_LIMIT = 30.0f;    // Max filtered angle before TVC enters limp mode
-const float TVC_RESET_ANGLE_LIMIT = 25.0f;  // Angle below which TVC can exit limp mode
+const float TVC_MAX_ANGLE_LIMIT = 45.0f;    // Max filtered angle before TVC enters limp mode
+const float TVC_RESET_ANGLE_LIMIT = 35.0f;  // Angle below which TVC can exit limp mode
 bool tvc_in_limp_mode = false;
 
 
@@ -67,7 +67,7 @@ ICM_20948_SPI imu;
 
 
 // --- Bias offsets ---
-float roll_bias = 0, yaw_bias = 0;
+float roll_bias = 0, pitch_bias = 0;
 
 
 // Bluetooth
@@ -205,25 +205,46 @@ void setup() {
  const int N = 200;
  float sum_r = 0, sum_y = 0;
  for(int i=0; i<N; i++){
-   icm_20948_DMP_data_t d;
-   if(imu.readDMPdataFromFIFO(&d)==ICM_20948_Stat_Ok && (d.header & DMP_header_bitmap_Quat6)){
-     double q1=d.Quat6.Data.Q1/1073741824.0, q2=d.Quat6.Data.Q2/1073741824.0, q3=d.Quat6.Data.Q3/1073741824.0;
-     double sumsq = q1*q1+q2*q2+q3*q3;
-     double q0 = (sumsq<1)? sqrt(1-sumsq):0;
-     // roll
-     double r0 = 2*(q0*q1+q2*q3), r1=1-2*(q1*q1+q2*q2);
-     float roll = atan2(r0,r1)*180.0/PI;
-     // yaw
-     double y0 = 2*(q0*q3+q1*q2), y1=1-2*(q2*q2+q3*q3);
-     float yaw  = atan2(y0,y1)*180.0/PI;
-     sum_r += roll;
-     sum_y += yaw;
-   }
+   // 1) TVC control using DMP Game Rotation Vector
+  icm_20948_DMP_data_t dmp_data;
+  if (imu.readDMPdataFromFIFO(&dmp_data) == ICM_20948_Stat_Ok && (dmp_data.header & DMP_header_bitmap_Quat6))
+  {
+    double q1 = static_cast<double>(dmp_data.Quat6.Data.Q1) / 1073741824.0; // X-axis rotation component
+    double q2 = static_cast<double>(dmp_data.Quat6.Data.Q2) / 1073741824.0; // Y-axis rotation component
+    double q3 = static_cast<double>(dmp_data.Quat6.Data.Q3) / 1073741824.0; // Z-axis rotation component
+
+    double q_sum_sq = q1 * q1 + q2 * q2 + q3 * q3;
+    double q0 = (q_sum_sq < 1.0) ? sqrt(1.0 - q_sum_sq) : 0.0;
+
+    // Apply quaternion correction for 90-degree rotation around Y-axis
+    const double sqrt2_over_2 = sqrt(2.0) / 2.0;
+    double q0_corrected = sqrt2_over_2 * (q0 + q2);
+    double q1_corrected = sqrt2_over_2 * (q1 - q3);
+    double q2_corrected = sqrt2_over_2 * (q2 - q0);
+    double q3_corrected = sqrt2_over_2 * (q3 - q1);
+
+    // Use corrected quaternions for Euler angle conversion
+    // Roll (around IMU X-axis / vehicle's longitudinal axis)
+    double t0_roll = 2.0 * (q0_corrected * q1_corrected + q2_corrected * q3_corrected);
+    double t1_roll = 1.0 - 2.0 * (q1_corrected * q1_corrected + q2_corrected * q2_corrected);
+    float current_roll_raw = atan2(t0_roll, t1_roll) * (180.0 / PI);
+
+    // Pitch (around IMU Y-axis / vehicle's transverse axis)
+    double t2_pitch = (2.0 * (q0_corrected * q2_corrected - q3_corrected * q1_corrected))*-1.0;
+    if (t2_pitch > 1.0)
+      t2_pitch = 1.0;
+    if (t2_pitch < -1.0)
+      t2_pitch = -1.0;
+    float current_pitch_raw = asin(t2_pitch) * (180.0 / PI);
+
+    current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA);
+    current_pitch_lpf = lpf(current_pitch_lpf, current_pitch_raw, LPF_BETA);
+  }
    delay(10);
  }
  roll_bias = sum_r/N;
- yaw_bias  = sum_y/N;
- Serial.printf("Biases: roll=%.1f°, yaw=%.1f°\n", roll_bias, yaw_bias);
+ pitch_bias  = sum_y/N;
+ Serial.printf("Biases: roll=%.1f°, yaw=%.1f°\n", roll_bias, pitch_bias);
 
  servoX.setPeriodHertz(50);
  servoY.setPeriodHertz(50);
@@ -289,19 +310,17 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
    float current_roll_raw = atan2(t0_roll, t1_roll) * (180.0 / PI) + 90;
 
 
-   // Yaw  (around IMU Z-axis)
-   double t0_yaw = 2.0 * (q0 * q3 + q1 * q2);
-   double t1_yaw = 1.0 - 2.0 * (q2 * q2 + q3 * q3);
-   float current_yaw_raw = atan2(t0_yaw, t1_yaw) * (180.0 / PI);
-   // ---- END OF EULER ANGLE CONVERSION ----
+   // Pitch (around IMU Y-axis)
+    double t2_pitch = (2.0 * (q0 * q2 - q3 * q1))*-1.0;
+    t2_pitch = constrain(t2_pitch, -1.0, 1.0);
+    float current_pitch_raw = asin(t2_pitch) * (180.0 / PI);
+    // ---- END OF EULER ANGLE CONVERSION ----
 
-
-   current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA) - roll_bias;
-   current_yaw_lpf  = lpf(current_yaw_lpf,  current_yaw_raw,  LPF_BETA) - yaw_bias;
-
+    current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA) - roll_bias;
+    current_pitch_lpf = lpf(current_pitch_lpf, current_pitch_raw, LPF_BETA) - pitch_bias;
 
    // ---------- TVC Limp Mode Logic ------------------------------
-   if (!tvc_in_limp_mode && (fabs(current_roll_lpf) > TVC_MAX_ANGLE_LIMIT || fabs(current_yaw_lpf) > TVC_MAX_ANGLE_LIMIT)) {
+   if (!tvc_in_limp_mode && (fabs(current_roll_lpf) > TVC_MAX_ANGLE_LIMIT || fabs(current_pitch_lpf) > TVC_MAX_ANGLE_LIMIT)) {
      Serial.println("!!! TVC Entering LIMP MODE: Angle limit exceeded !!!");
      tvc_in_limp_mode = true;
      servoX.write(90);  // Go to neutral
@@ -313,7 +332,7 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
    }
 
 
-   if (tvc_in_limp_mode && fabs(current_roll_lpf) < TVC_RESET_ANGLE_LIMIT && fabs(current_yaw_lpf) < TVC_RESET_ANGLE_LIMIT) {
+   if (tvc_in_limp_mode && fabs(current_roll_lpf) < TVC_RESET_ANGLE_LIMIT && fabs(current_pitch_lpf) < TVC_RESET_ANGLE_LIMIT) {
      Serial.println("TVC Exiting LIMP MODE: Angles back in range.");
      tvc_in_limp_mode = false;
      // PID state (integrals, prev_errors) will naturally rebuild on next active PID cycle
@@ -330,7 +349,7 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
 
      float tvc_error[2];
      tvc_error[0] = 0.0f - current_roll_lpf;
-     tvc_error[1] = 0.0f - current_yaw_lpf;
+     tvc_error[1] = 0.0f - current_pitch_lpf;
 
 
      float servo_command_angle_calculated[2] = { 90.0f, 90.0f };  // Temporary for calculation
@@ -358,7 +377,7 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
      Serial.print("ACTIVE Roll: ");
      Serial.print(current_roll_lpf, 1);
      Serial.print(", Pitch: ");
-     Serial.print(current_yaw_lpf, 1);
+     Serial.print(current_pitch_lpf, 1);
      Serial.print(" | ServoX: ");
      Serial.print(servo_command_angle_calculated[0], 1);
      Serial.print(", ServoY: ");
@@ -373,7 +392,7 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
      Serial.print("LIMP MODE Roll: ");
      Serial.print(current_roll_lpf, 1);
      Serial.print(", Pitch: ");
-     Serial.print(current_yaw_lpf, 1);
+     Serial.print(current_pitch_lpf, 1);
      Serial.println(" | Servos at Neutral.");
    }
  }  // End of DMP data processing
@@ -403,13 +422,13 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
  }
 
 
- // fire the 2nd motor
- // if ((millis() - lastMotorTime) >= motorInterval) {
- //   triggerMotor();
- //   lastMotorTime = loop_start_micros;
- //   // fire leg actuators
- //   triggerLegs();
- // }
+//  fire the 2nd motor
+ if ((millis() - lastMotorTime) >= motorInterval) {
+   triggerMotor();
+   lastMotorTime = loop_start_micros;
+   // fire leg actuators
+   triggerLegs();
+ }
 
 
 
