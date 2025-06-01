@@ -422,13 +422,13 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
  }
 
 
- // fire the 2nd motor
- // if ((millis() - lastMotorTime) >= motorInterval) {
- //   triggerMotor();
- //   lastMotorTime = loop_start_micros;
- //   // fire leg actuators
- //   triggerLegs();
- // }
+//  fire the 2nd motor
+ if ((millis() - lastMotorTime) >= motorInterval) {
+   triggerMotor();
+   lastMotorTime = loop_start_micros;
+   // fire leg actuators
+   triggerLegs();
+ }
 
 
 
