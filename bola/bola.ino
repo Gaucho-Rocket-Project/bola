@@ -6,7 +6,6 @@
 #include <cmath>
 #include <iostream>
 #include <utility>
-#include <vector>
 #include <array> // added for lookup table
 #include "BluetoothSerial.h"
 
@@ -16,14 +15,14 @@
 #define SPI_MOSI 23
 #define CS_PIN 5 // Chip‐select for ICM-20948
 
-#define SECOND_MOTOR_TIMER_MS 3000
+const int second_motor_time_ms = 3000;
 
 const int gpioPin = 17;
 const int primaryMotorPin = 26;   // primary motor pin
 const int secondaryMotorPin = 27; // secondary motor pin
 
 // --- Reaction‐wheel ESC on GPIO27 ---
-const int escPin = 14;
+const int escPin = 13;
 const int escFreq = 50; // 50 Hz for typical ESC PWM
 const int escRes = 16;  // 16-bit PWM resolution
 
@@ -157,6 +156,48 @@ void setup()
 
   SPI.begin(SPI_SCLK, SPI_MISO, SPI_MOSI);
 
+  Serial.println("Initializing IMU DMP...");
+ while (imu.begin(CS_PIN, SPI) != ICM_20948_Stat_Ok) {
+   Serial.println("IMU.begin failed; retrying...");
+   delay(500);
+ }
+ if (imu.initializeDMP() != ICM_20948_Stat_Ok) {
+   Serial.println("FATAL: initializeDMP failed!");
+   while (1)
+     ;
+ }
+ if (imu.enableDMPSensor(INV_ICM20948_SENSOR_GAME_ROTATION_VECTOR) != ICM_20948_Stat_Ok) {
+   Serial.println("FATAL: enableDMPSensor failed!");
+   while (1)
+     ;
+ }
+ if (imu.setDMPODRrate(DMP_ODR_Reg_Quat6, 1) != ICM_20948_Stat_Ok) {
+   Serial.println("FATAL: setDMPODRrate failed!");
+   while (1)
+     ;
+ }
+ if (imu.enableFIFO() != ICM_20948_Stat_Ok) {
+   Serial.println("FATAL: enableFIFO failed!");
+   while (1)
+     ;
+ }
+ if (imu.enableDMP() != ICM_20948_Stat_Ok) {
+   Serial.println("FATAL: enableDMP failed!");
+   while (1)
+     ;
+ }
+ if (imu.resetDMP() != ICM_20948_Stat_Ok) {
+   Serial.println("FATAL: resetDMP failed!");
+   while (1)
+     ;
+ }
+ if (imu.resetFIFO() != ICM_20948_Stat_Ok) {
+   Serial.println("FATAL: resetFIFO failed!");
+   while (1)
+     ;
+ }
+ Serial.println("ICM-20948 DMP ready.");
+
   // Calibrate bias axes (vertical stance)
   Serial.println("Calibrating biases... hold sensor vertical");
   const int N = 200;
@@ -224,6 +265,8 @@ void setup()
   tvc_prev_time_micros = micros();
   prevTime_rw_micros = micros();
   start_time = 0;
+
+  firstMotorTriggered = false;
 
   Serial.println("Setup complete.");
 }
@@ -349,18 +392,18 @@ void loop()
     }
   } // End of DMP data processing
 
-  handleBT();
+  // handleBT();
 
-  if (!launchSequence) {
-    delay(500);
-    return;
-  }
+  // if (!launchSequence) {
+  //   delay(500);
+  //   return;
+  // }
   // somewhere in launch sequence call triggerFirstMotor function to fire first motor
 
-  if(launchSequence && !firstMotorTriggered){
-    triggerFirstMotor();
-    firstMotorTriggered = true;
-  }
+  // if(launchSequence && !firstMotorTriggered){
+  //   triggerFirstMotor();
+  //   firstMotorTriggered = true;
+  // }
 
   // 2) Reaction-wheel Controller
   // Consider if reaction wheel should also be affected by tvc_in_limp_mode
@@ -389,7 +432,7 @@ void loop()
   }
 
   //  fire the 2nd motor
-  if ((millis() >= (SECOND_MOTOR_TIMER_MS - start_time)) && !triggered)
+  if ((millis() >= (second_motor_time_ms + start_time)) && !triggered)
   {
     triggered = true;
     triggerSecondMotor();
