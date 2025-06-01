@@ -16,12 +16,14 @@
 #define SPI_MOSI 23
 #define CS_PIN 5 // Chip‐select for ICM-20948
 
+#define SECOND_MOTOR_TIMER_MS 3000
+
 const int gpioPin = 17;
 const int primaryMotorPin = 26;   // primary motor pin
 const int secondaryMotorPin = 27; // secondary motor pin
 
 // --- Reaction‐wheel ESC on GPIO27 ---
-const int escPin = 0;
+const int escPin = 14;
 const int escFreq = 50; // 50 Hz for typical ESC PWM
 const int escRes = 16;  // 16-bit PWM resolution
 
@@ -35,7 +37,7 @@ Servo leg_servo;
 int leg_pin = 15;
 bool triggered = false;
 
-int trigger_time; // second motor & landing gear
+int start_time;
 
 // --- PID constants for reaction wheel (yaw rate) ---
 const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
@@ -109,6 +111,7 @@ void handleBT()
     case '1':
       Serial.println("BT: start launch sequence");
       launchSequence = true;
+      start_time = millis();
       break;
     case '0':
       Serial.println("BT: stop launch sequence");
@@ -220,8 +223,7 @@ void setup()
 
   tvc_prev_time_micros = micros();
   prevTime_rw_micros = micros();
-
-  trigger_time = 13000 + millis();
+  start_time = 0;
 
   Serial.println("Setup complete.");
 }
@@ -229,7 +231,7 @@ void setup()
 // --- Main loop ---
 void loop()
 {
-  digitalWrite(gpioPin, LOW); // Force GPIO 17 to LOW // Optional: Add a delay (e.g., 1 second)
+  digitalWrite(gpioPin, LOW);
 
   unsigned long loop_start_micros = micros();
 
@@ -383,23 +385,14 @@ void loop()
   {
     // If TVC is in limp mode, set reaction wheel to neutral for safety
     ledcWrite(escPin, usToDuty(1500));
-    // Serial.println("Reaction Wheel Neutral due to TVC Limp Mode.");
+    Serial.println("Reaction Wheel Neutral due to TVC Limp Mode.");
   }
 
   //  fire the 2nd motor
-  if ((millis() - lastMotorTime >= trigger_time) && !triggered)
+  if ((millis() >= (SECOND_MOTOR_TIMER_MS - start_time)) && !triggered)
   {
     triggered = true;
     triggerSecondMotor();
-    lastMotorTime = loop_start_micros;
-    // fire leg actuators
     triggerLegs();
   }
-
-  // --- Maintain loop rate ---
-  //  long loop_duration_micros = micros() - loop_start_micros;
-  //  long delay_needed_micros = static_cast<long>(TVC_TIME_STEP_TARGET * 1e6f) - loop_duration_micros;
-  //  if (delay_needed_micros > 0) {
-  //    delayMicroseconds(delay_needed_micros);
-  //  }
 }
