@@ -22,13 +22,13 @@ const int primaryMotorPin = 26;   // primary motor pin
 const int secondaryMotorPin = 27; // secondary motor pin
 
 // --- Reaction‐wheel ESC on GPIO27 ---
-const int escPin = 13;
+const int escPin = 4;
 const int escFreq = 50; // 50 Hz for typical ESC PWM
 const int escRes = 16;  // 16-bit PWM resolution
 
 // --- TVC servos on two GPIOs ---
 Servo servoX, servoY;
-int xPin = 33;
+int xPin = 2;
 int yPin = 32;
 
 // Leg Servo
@@ -257,14 +257,14 @@ void setup()
 
   ledcAttach(escPin, escFreq, escRes);
   ledcAttach(leg_pin, 50, 16);
-  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
-  ledcWrite(escPin, usToDuty(1500));
+  Serial.println("Arming Reaction Wheel ESC: Sending 1000us. Please wait ~5 seconds...");
+  ledcWrite(escPin, usToDuty(1000));
   delay(5000);
   Serial.println("ESC presumed armed.");
 
   tvc_prev_time_micros = micros();
   prevTime_rw_micros = micros();
-  start_time = 0;
+  start_time = millis();
 
   firstMotorTriggered = false;
 
