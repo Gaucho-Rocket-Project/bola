@@ -50,6 +50,7 @@ const float LPF_BETA = 0.2f;
 
 // Variables for the LPF-based TVC PID
 float current_roll_lpf = 0.0f;
+float current_pitch_lpf = 0.0f;
 float current_yaw_lpf = 0.0f;
 float tvc_error_integral[2] = { 0.0f, 0.0f };
 float tvc_prev_error[2] = { 0.0f, 0.0f };
@@ -238,9 +239,7 @@ void setup() {
     float current_pitch_raw = asin(t2_pitch) * (180.0 / PI);
 
     current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA);
-    current_yaw_lpf = lpf(current_yaw_lpf, current_pitch_raw, LPF_BETA);
-
-    // Rest of your code...
+    current_pitch_lpf = lpf(current_pitch_lpf, current_pitch_raw, LPF_BETA);
   }
    delay(10);
  }
