@@ -34,7 +34,7 @@ int yPin = 32;
 // Leg Servo
 Servo leg_servo;
 int leg_pin = 15;
-bool triggered;
+bool triggered = false;
 
 
 // --- PID constants for reaction wheel (yaw rate) ---
@@ -145,8 +145,8 @@ void triggerMotor() {
 
 
 void triggerLegs() {
- leg_servo.write(90);
-} 
+  ledcWrite(leg_pin, usToDuty(1500));
+}
 
 
 // --- Setup ---
@@ -258,14 +258,11 @@ void setup() {
  servoX.write(90);
  servoY.write(90);
 
- triggered = false;
-
  leg_servo.setPeriodHertz(50);
  leg_servo.attach(leg_pin, 500, 2400);
- leg_servo.write(0);
-
 
  ledcAttach(escPin, escFreq, escRes);
+ ledcAttach(leg_pin, 50, 16);
  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
  ledcWrite(escPin, usToDuty(1500));
  delay(5000);
