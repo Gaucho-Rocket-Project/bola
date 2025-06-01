@@ -44,7 +44,7 @@ const float Kp_tvc = 1.5f;
 const float Ki_tvc = 0.1f;
 const float Kd_tvc = 0.05f;  // START VERY LOW (e.g., 0.0) AND TUNE UP
 const float TVC_TIME_STEP_TARGET = 0.01f;
-const float tvc_deadzone = 2.0f;
+const float tvc_deadzone = 1.0f;
 const float LPF_BETA = 0.2f;
 
 
@@ -57,8 +57,8 @@ unsigned long tvc_prev_time_micros = 0;
 
 
 // TVC Limp Mode (Shutdown)
-const float TVC_MAX_ANGLE_LIMIT = 30.0f;    // Max filtered angle before TVC enters limp mode
-const float TVC_RESET_ANGLE_LIMIT = 25.0f;  // Angle below which TVC can exit limp mode
+const float TVC_MAX_ANGLE_LIMIT = 45.0f;    // Max filtered angle before TVC enters limp mode
+const float TVC_RESET_ANGLE_LIMIT = 35.0f;  // Angle below which TVC can exit limp mode
 bool tvc_in_limp_mode = false;
 
 
