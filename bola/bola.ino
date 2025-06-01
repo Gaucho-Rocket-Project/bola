@@ -51,7 +51,6 @@ const float LPF_BETA = 0.2f;
 // Variables for the LPF-based TVC PID
 float current_roll_lpf = 0.0f;
 float current_pitch_lpf = 0.0f;
-float current_yaw_lpf = 0.0f;
 float tvc_error_integral[2] = { 0.0f, 0.0f };
 float tvc_prev_error[2] = { 0.0f, 0.0f };
 unsigned long tvc_prev_time_micros = 0;
@@ -68,7 +67,7 @@ ICM_20948_SPI imu;
 
 
 // --- Bias offsets ---
-float roll_bias = 0, yaw_bias = 0;
+float roll_bias = 0, pitch_bias = 0;
 
 
 // Bluetooth
@@ -244,8 +243,8 @@ void setup() {
    delay(10);
  }
  roll_bias = sum_r/N;
- yaw_bias  = sum_y/N;
- Serial.printf("Biases: roll=%.1f°, yaw=%.1f°\n", roll_bias, yaw_bias);
+ pitch_bias  = sum_y/N;
+ Serial.printf("Biases: roll=%.1f°, yaw=%.1f°\n", roll_bias, pitch_bias);
 
  servoX.setPeriodHertz(50);
  servoY.setPeriodHertz(50);
@@ -311,19 +310,17 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
    float current_roll_raw = atan2(t0_roll, t1_roll) * (180.0 / PI) + 90;
 
 
-   // Yaw  (around IMU Z-axis)
-   double t0_yaw = 2.0 * (q0 * q3 + q1 * q2);
-   double t1_yaw = 1.0 - 2.0 * (q2 * q2 + q3 * q3);
-   float current_yaw_raw = atan2(t0_yaw, t1_yaw) * (180.0 / PI);
-   // ---- END OF EULER ANGLE CONVERSION ----
+   // Pitch (around IMU Y-axis)
+    double t2_pitch = 2.0 * (q0 * q2 - q3 * q1);
+    t2_pitch = constrain(t2_pitch, -1.0, 1.0);
+    float current_pitch_raw = asin(t2_pitch) * (180.0 / PI);
+    // ---- END OF EULER ANGLE CONVERSION ----
 
-
-   current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA) - roll_bias;
-   current_yaw_lpf  = lpf(current_yaw_lpf,  current_yaw_raw,  LPF_BETA) - yaw_bias;
-
+    current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA) - roll_bias;
+    current_pitch_lpf = lpf(current_pitch_lpf, current_pitch_raw, LPF_BETA) - pitch_bias;
 
    // ---------- TVC Limp Mode Logic ------------------------------
-   if (!tvc_in_limp_mode && (fabs(current_roll_lpf) > TVC_MAX_ANGLE_LIMIT || fabs(current_yaw_lpf) > TVC_MAX_ANGLE_LIMIT)) {
+   if (!tvc_in_limp_mode && (fabs(current_roll_lpf) > TVC_MAX_ANGLE_LIMIT || fabs(current_pitch_lpf) > TVC_MAX_ANGLE_LIMIT)) {
      Serial.println("!!! TVC Entering LIMP MODE: Angle limit exceeded !!!");
      tvc_in_limp_mode = true;
      servoX.write(90);  // Go to neutral
@@ -335,7 +332,7 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
    }
 
 
-   if (tvc_in_limp_mode && fabs(current_roll_lpf) < TVC_RESET_ANGLE_LIMIT && fabs(current_yaw_lpf) < TVC_RESET_ANGLE_LIMIT) {
+   if (tvc_in_limp_mode && fabs(current_roll_lpf) < TVC_RESET_ANGLE_LIMIT && fabs(current_pitch_lpf) < TVC_RESET_ANGLE_LIMIT) {
      Serial.println("TVC Exiting LIMP MODE: Angles back in range.");
      tvc_in_limp_mode = false;
      // PID state (integrals, prev_errors) will naturally rebuild on next active PID cycle
@@ -352,7 +349,7 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
 
      float tvc_error[2];
      tvc_error[0] = 0.0f - current_roll_lpf;
-     tvc_error[1] = 0.0f - current_yaw_lpf;
+     tvc_error[1] = 0.0f - current_pitch_lpf;
 
 
      float servo_command_angle_calculated[2] = { 90.0f, 90.0f };  // Temporary for calculation
@@ -380,7 +377,7 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
      Serial.print("ACTIVE Roll: ");
      Serial.print(current_roll_lpf, 1);
      Serial.print(", Pitch: ");
-     Serial.print(current_yaw_lpf, 1);
+     Serial.print(current_pitch_lpf, 1);
      Serial.print(" | ServoX: ");
      Serial.print(servo_command_angle_calculated[0], 1);
      Serial.print(", ServoY: ");
@@ -395,7 +392,7 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
      Serial.print("LIMP MODE Roll: ");
      Serial.print(current_roll_lpf, 1);
      Serial.print(", Pitch: ");
-     Serial.print(current_yaw_lpf, 1);
+     Serial.print(current_pitch_lpf, 1);
      Serial.println(" | Servos at Neutral.");
    }
  }  // End of DMP data processing
