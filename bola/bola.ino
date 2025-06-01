@@ -36,6 +36,8 @@ Servo leg_servo;
 int leg_pin = 15;
 bool triggered = false;
 
+int trigger_time;
+
 
 // --- PID constants for reaction wheel (yaw rate) ---
 const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
@@ -271,6 +273,9 @@ void setup() {
 
  tvc_prev_time_micros = micros();
  prevTime_rw_micros = micros();
+
+ trigger_time = 3000 + millis();
+
  Serial.println("Setup complete.");
 }
 
@@ -429,9 +434,8 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
    // Serial.println("Reaction Wheel Neutral due to TVC Limp Mode.");
  }
 
-
 //  fire the 2nd motor
- if ((millis() - lastMotorTime >= motorInterval) && !triggered) {
+ if ((millis() - lastMotorTime >= trigger_time) && !triggered) {
    triggered = true;
    triggerMotor();
    lastMotorTime = loop_start_micros;
