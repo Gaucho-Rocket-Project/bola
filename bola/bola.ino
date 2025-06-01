@@ -19,7 +19,6 @@
 
 
 const int gpioPin = 17;
-const int landingLegsPin = 4;
 
 // --- Reaction‐wheel ESC on GPIO27 ---
 const int escPin = 0;
@@ -31,6 +30,11 @@ const int escRes = 16;   // 16-bit PWM resolution
 Servo servoX, servoY;
 int xPin = 33;
 int yPin = 32;
+
+// Leg Servo
+Servo leg_servo;
+int leg_pin = 15;
+bool triggered = false;
 
 
 // --- PID constants for reaction wheel (yaw rate) ---
@@ -136,12 +140,13 @@ void handleBT() {
 
 void triggerMotor() {
  // e.g. ledcWrite(escPin, usToDuty(2000));
+ Serial.println("Trigger motor and legs");
 }
 
 
 void triggerLegs() {
- // e.g. digitalWrite(legPin, HIGH); delay(100); digitalWrite(legPin, LOW);
-} 
+  ledcWrite(leg_pin, usToDuty(1500));
+}
 
 
 // --- Setup ---
@@ -253,8 +258,11 @@ void setup() {
  servoX.write(90);
  servoY.write(90);
 
+ leg_servo.setPeriodHertz(50);
+ leg_servo.attach(leg_pin, 500, 2400);
 
  ledcAttach(escPin, escFreq, escRes);
+ ledcAttach(leg_pin, 50, 16);
  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
  ledcWrite(escPin, usToDuty(1500));
  delay(5000);
@@ -423,7 +431,8 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
 
 
 //  fire the 2nd motor
- if ((millis() - lastMotorTime) >= motorInterval) {
+ if ((millis() - lastMotorTime >= motorInterval) && !triggered) {
+   triggered = true;
    triggerMotor();
    lastMotorTime = loop_start_micros;
    // fire leg actuators
