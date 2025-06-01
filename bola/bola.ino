@@ -274,7 +274,7 @@ void setup() {
  tvc_prev_time_micros = micros();
  prevTime_rw_micros = micros();
 
- trigger_time = 3000 + millis();
+ trigger_time = 13000 + millis();
 
  Serial.println("Setup complete.");
 }
