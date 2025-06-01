@@ -36,8 +36,6 @@ int leg_pin = 15;
 bool triggered = false;
 
 int trigger_time; // second motor & landing gear
-int landing_time; // time to land
-int apogee_time;  // time to reach apogee
 
 // --- PID constants for reaction wheel (yaw rate) ---
 const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
@@ -74,6 +72,7 @@ float roll_bias = 0, pitch_bias = 0;
 BluetoothSerial SerialBT;
 char btCmd;
 bool launchSequence = false; // main logic flag
+bool firstMotorTriggered = false;
 
 // MoI Consts
 const float I_rocket = 0.002395f;
@@ -223,8 +222,6 @@ void setup()
   prevTime_rw_micros = micros();
 
   trigger_time = 13000 + millis();
-  landing_time = 16756 + millis();
-  apogee_time = 13496 + millis();
 
   Serial.println("Setup complete.");
 }
@@ -350,13 +347,18 @@ void loop()
     }
   } // End of DMP data processing
 
-  // handleBT();
+  handleBT();
 
-  // if (!launchSequence) {
-  //   delay(50);
-  //   return;
-  // }
+  if (!launchSequence) {
+    delay(500);
+    return;
+  }
   // somewhere in launch sequence call triggerFirstMotor function to fire first motor
+
+  if(launchSequence && !firstMotorTriggered){
+    triggerFirstMotor();
+    firstMotorTriggered = true;
+  }
 
   // 2) Reaction-wheel Controller
   // Consider if reaction wheel should also be affected by tvc_in_limp_mode
