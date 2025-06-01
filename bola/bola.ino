@@ -230,7 +230,7 @@ void setup() {
     float current_roll_raw = atan2(t0_roll, t1_roll) * (180.0 / PI);
 
     // Pitch (around IMU Y-axis / vehicle's transverse axis)
-    double t2_pitch = 2.0 * (q0_corrected * q2_corrected - q3_corrected * q1_corrected);
+    double t2_pitch = (2.0 * (q0_corrected * q2_corrected - q3_corrected * q1_corrected))*-1.0;
     if (t2_pitch > 1.0)
       t2_pitch = 1.0;
     if (t2_pitch < -1.0)
@@ -311,7 +311,7 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
 
 
    // Pitch (around IMU Y-axis)
-    double t2_pitch = 2.0 * (q0 * q2 - q3 * q1);
+    double t2_pitch = (2.0 * (q0 * q2 - q3 * q1))*-1.0;
     t2_pitch = constrain(t2_pitch, -1.0, 1.0);
     float current_pitch_raw = asin(t2_pitch) * (180.0 / PI);
     // ---- END OF EULER ANGLE CONVERSION ----
