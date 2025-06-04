@@ -41,7 +41,7 @@ Install the following libraries via the **Arduino Library Manager**, or manually
    `Documents/Arduino/libraries/SparkFun_ICM-20948_ArduinoLibrary/src/util/`
 
 2. Open `ICM_20948_C.h` and uncomment the following line:   `#define ICM_20948_USE_DMP`
-3. Wire the ICM-20948 to the ESP32 using this schematic: <p align="center"> <img src="https://github.com/user-attachments/assets/26625338-ee19-4321-a04d-c90d5f5c1a84" alt="IMU wiring schematic"/> </p>
+3. Wire the ICM-20948 to the ESP32 using this schematic: <p align="center"> <img src="[https://github.com/user-attachments/assets/26625338-ee19-4321-a04d-c90d5f5c1a84](https://github.com/user-attachments/assets/55271a32-4c1b-4f5f-b4ea-8b9dc3966151)" alt="IMU wiring schematic"/> </p>
 4. Open or paste the provided sketch from this repository into a new Arduino IDE project.
 5. Upload the sketch, and hold the boot button on the ESP32 while uploading
 6. Open Serial Moniter at `115200 baud` and when prompted enter any key
