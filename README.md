@@ -3,7 +3,7 @@
 This repository contains the setup and code for using an ESP32 with sensors (IMU and barometer) for the Gaucho Rocket Project.
 
 >  *The ESP32 uses a USB-C connection for uploading code.*
-[Wiki]{https://www.notion.so/Telluris-Wiki-22edc7fa243a802baae4f8249a0813ee#23edc7fa243a802d893bfaf9453b8a5b}
+> [Wiki]{https://www.notion.so/Telluris-Wiki-22edc7fa243a802baae4f8249a0813ee#23edc7fa243a802d893bfaf9453b8a5b}
 ---
 
 ##  Requirements
