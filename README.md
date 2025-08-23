@@ -1,4 +1,7 @@
-#  ESP32 Sensor Code
+#  Bola Flight Controller
+
+#### Lead Developers: Jacob Ismael, Ethan Scanlon, Srihari Prazid
+
 > [Wiki](https://www.notion.so/Telluris-Wiki-22edc7fa243a802baae4f8249a0813ee#23edc7fa243a802d893bfaf9453b8a5b)
 
 This repository contains the setup and code for using an ESP32 with sensors (IMU and barometer) for the Gaucho Rocket Project.
