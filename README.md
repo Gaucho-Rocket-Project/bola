@@ -17,6 +17,7 @@ This repository contains the setup and code for using an ESP32 with sensors (IMU
 - Select the following under **Tools**:
   - **Board:** `ESP32 Dev Module`
   - **Port:** The correct COM port your ESP32 is connected to
+  - **Baud Rate:** Check the correct baud rate for serial monitor and anywhere else relevant (115200 typically)
 
 ---
 
