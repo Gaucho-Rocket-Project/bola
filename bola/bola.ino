@@ -39,11 +39,6 @@ bool triggered = false;
 int trigger_time;
 
 
-// --- PID constants for reaction wheel (yaw rate) ---
-const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
-float prevError_rw = 0.0f, integral_rw = 0.0f;
-
-
 // --- PID constants for TVC (roll/pitch) ---
 const float Kp_tvc = 1.5f;
 const float Ki_tvc = 0.1f;
