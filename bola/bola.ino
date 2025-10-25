@@ -42,7 +42,6 @@ int trigger_time;
 // --- PID constants for reaction wheel (yaw rate) ---
 const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
 float prevError_rw = 0.0f, integral_rw = 0.0f;
-unsigned long prevTime_rw_micros = 0;
 
 
 // --- PID constants for TVC (roll/pitch) ---
@@ -52,6 +51,19 @@ const float Kd_tvc = 0.05f;  // START VERY LOW (e.g., 0.0) AND TUNE UP
 const float TVC_TIME_STEP_TARGET = 0.01f;
 const float tvc_deadzone = 1.0f;
 const float LPF_BETA = 0.2f;
+
+// --- PID constants for reaction wheel (yaw rate) ---
+unsigned long prevTime_rw_micros = 0;
+float rw_derivative = 0.0f;
+float rw_error_integral = 0.0f;
+float rw_prev_error = 0.0f;
+const float Kp_rw = 1.1677f // should initially be set to I_rocket / I_wheel
+const float Kd_rw = 1.3f;
+const float Ki_rw = 0.2f;
+
+// Variables for the LPF-based reaction wheel
+float current_yaw_lpf = 0.0f;
+float past_yaw_lfp = 0.0f;
 
 
 // Variables for the LPF-based TVC PID
@@ -421,9 +433,13 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
    float dt_rw = (prevTime_rw_micros == 0) ? TVC_TIME_STEP_TARGET : static_cast<float>(current_rw_micros - prevTime_rw_micros) * 1e-6f;
    if (dt_rw <= 0.00001f) { dt_rw = TVC_TIME_STEP_TARGET; }
 
+   current_yaw_lpf = lpf(current_yaw_lpf, yawRate, LPF_BETA);
+   rw_derivative = (current_yaw_lpf - past_yaw_lfp) / dt_rw;
+   rw_error_integral += (current_yaw_lpf + past_yaw_lfp) * dt_rw;
+   past_yaw_lfp = current_yaw_lpf;
 
-   // — 2) Reaction-wheel linear function —
-   float u = (yawRate * I_rocket) / (I_wheel);
+   // — 2) Reaction-wheel PID function —
+   float u = Kp_rw*current_yaw_lpf + Ki_rw*rw_error_integral + Kd_rw*rw_derivative;  // negative of the current yaw direction 
    int pulse = constrain(1500 - int(u), 1000, 2000);
    ledcWrite(escPin, usToDuty(pulse));
 
