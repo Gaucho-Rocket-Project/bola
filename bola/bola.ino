@@ -12,46 +12,46 @@
 
 
 // --- SPI pins for VSPI (default) ---
-#define SPI_SCLK 18
-#define SPI_MISO 19
-#define SPI_MOSI 23
-#define CS_PIN 5  // Chip‐select for ICM-20948
+contexspr int spi_sclk_pin 18;
+contexspr int miso_pin 19;
+contexspr int mosi_pin 23;
+contexspr int icm20948_cs_pin 5;  // Chip‐select for ICM-20948
 
 
-const int gpioPin = 17;
+contexspr int status_led_pin = 17;
 
-// --- Reaction‐wheel ESC on GPIO27 ---
-const int escPin = 0;
-const int escFreq = 50;  // 50 Hz for typical ESC PWM
-const int escRes = 16;   // 16-bit PWM resolution
+// --- Reaction‐wheel ESC on GPIO0 ---
+contexspr int reaction_wheel_pin = 0;
+contexspr int reaction_wheel_freq = 50;  // 50 Hz for typical ESC PWM
+contexspr int reaction_wheel_resolution  = 16;   // 16-bit PWM resolution
 
 
 // --- TVC servos on two GPIOs ---
 Servo servoX, servoY;
-int xPin = 33;
-int yPin = 32;
+contexspr int servo_x_pin = 33;
+contexspr int servo_y_pin = 32;
 
 // Leg Servo
 Servo leg_servo;
-int leg_pin = 15;
-bool triggered = false;
+contexspr int leg_servo_pin = 15;
+bool legs_triggered = false;
 
 int trigger_time;
 
 
 // --- PID constants for reaction wheel (yaw rate) ---
-const float Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
+contexspr float  Kp_rw = 3.3125f, Ki_rw = 0.2f, Kd_rw = 1.3f;
 float prevError_rw = 0.0f, integral_rw = 0.0f;
-unsigned long prevTime_rw_micros = 0;
+unsigned long rw_prev_time_micros  = 0;
 
 
 // --- PID constants for TVC (roll/pitch) ---
-const float Kp_tvc = 1.5f;
-const float Ki_tvc = 0.1f;
-const float Kd_tvc = 0.05f;  // START VERY LOW (e.g., 0.0) AND TUNE UP
-const float TVC_TIME_STEP_TARGET = 0.01f;
-const float tvc_deadzone = 1.0f;
-const float LPF_BETA = 0.2f;
+contexspr float Kp_tvc = 1.5f;
+contexspr float Ki_tvc = 0.1f;
+contexspr float Kd_tvc = 0.05f;  // START VERY LOW (e.g., 0.0) AND TUNE UP
+contexspr float tvc_time_step_target = 0.01f;
+contexspr float tvc_deadzone = 1.0f;
+contexspr float lpf_beta = 0.2f;
 
 
 // Variables for the LPF-based TVC PID
@@ -94,7 +94,7 @@ unsigned long last_motor_time = 0,
 
 // --- Helpers ---
 uint32_t usToDuty(int us) {
- return (uint32_t)us * ((1UL << escRes) - 1) / 20000;
+ return (uint32_t)us * ((1UL << reaction_wheel_resolution ) - 1) / 20000;
 }
 
 
@@ -141,19 +141,19 @@ void handleBT() {
 
 
 void triggerMotor() {
- // e.g. ledcWrite(escPin, usToDuty(2000));
+ // e.g. ledcWrite(reaction_wheel_pin, usToDuty(2000));
  Serial.println("Trigger motor and legs");
 }
 
 
 void triggerLegs() {
-  ledcWrite(leg_pin, usToDuty(1500));
+  ledcWrite(leg_servo_pin, usToDuty(1500));
 }
 
 
 // --- Setup ---
 void setup() {
-  pinMode(gpioPin, OUTPUT); // Set GPIO 17 as an output pin
+  pinMode( status_led_pin, OUTPUT); // Set GPIO 17 as an output pin
 
  Serial.begin(115200);
  while (!Serial)
@@ -161,11 +161,11 @@ void setup() {
  Serial.println("Setup starting...");
 
 
- SPI.begin(SPI_SCLK, SPI_MISO, SPI_MOSI);
+ SPI.begin(spi_sclk_pin, miso_pin, mosi_pin);
 
 
  Serial.println("Initializing IMU DMP...");
- while (imu.begin(CS_PIN, SPI) != ICM_20948_Stat_Ok) {
+ while (imu.begin(icm20948_cs_pin, SPI) != ICM_20948_Stat_Ok) {
    Serial.println("IMU.begin failed; retrying...");
    delay(500);
  }
@@ -244,8 +244,8 @@ void setup() {
       t2_pitch = -1.0;
     float current_pitch_raw = asin(t2_pitch) * (180.0 / PI);
 
-    current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA);
-    current_pitch_lpf = lpf(current_pitch_lpf, current_pitch_raw, LPF_BETA);
+    current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, lpf_beta);
+    current_pitch_lpf = lpf(current_pitch_lpf, current_pitch_raw, lpf_beta);
   }
    delay(10);
  }
@@ -255,24 +255,24 @@ void setup() {
 
  servoX.setPeriodHertz(50);
  servoY.setPeriodHertz(50);
- servoX.attach(xPin, 500, 2400);
- servoY.attach(yPin, 500, 2400);
+ servoX.attach(servo_x_pin, 500, 2400);
+ servoY.attach(servo_y_pin, 500, 2400);
  servoX.write(90);
  servoY.write(90);
 
  leg_servo.setPeriodHertz(50);
- leg_servo.attach(leg_pin, 500, 2400);
+ leg_servo.attach(leg_servo_pin, 500, 2400);
 
- ledcAttach(escPin, escFreq, escRes);
- ledcAttach(leg_pin, 50, 16);
+ ledcAttach(reaction_wheel_pin, reaction_wheel_freq, reaction_wheel_resolution );
+ ledcAttach(leg_servo_pin, 50, 16);
  Serial.println("Arming Reaction Wheel ESC: Sending 1500us. Please wait ~5 seconds...");
- ledcWrite(escPin, usToDuty(1500));
+ ledcWrite(reaction_wheel_pin, usToDuty(1500));
  delay(5000);
  Serial.println("ESC presumed armed.");
 
 
  tvc_prev_time_micros = micros();
- prevTime_rw_micros = micros();
+ rw_prev_time_micros  = micros();
 
  trigger_time = 3000 + millis();
 
@@ -283,7 +283,7 @@ void setup() {
 // --- Main loop ---
 void loop() {
   
-  digitalWrite(gpioPin, LOW); // Force GPIO 17 to LOW // Optional: Add a delay (e.g., 1 second)
+  digitalWrite( status_led_pin, LOW); // Force GPIO 17 to LOW // Optional: Add a delay (e.g., 1 second)
 
  // handleBT();
 
@@ -329,8 +329,8 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
     float current_pitch_raw = asin(t2_pitch) * (180.0 / PI);
     // ---- END OF EULER ANGLE CONVERSION ----
 
-    current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, LPF_BETA) - roll_bias;
-    current_pitch_lpf = lpf(current_pitch_lpf, current_pitch_raw, LPF_BETA) - pitch_bias;
+    current_roll_lpf = lpf(current_roll_lpf, current_roll_raw, lpf_beta) - roll_bias;
+    current_pitch_lpf = lpf(current_pitch_lpf, current_pitch_raw, lpf_beta) - pitch_bias;
 
    // ---------- TVC Limp Mode Logic ------------------------------
    if (!tvc_in_limp_mode && (fabs(current_roll_lpf) > tvc_max_angle_limit || fabs(current_pitch_lpf) > tvc_max_angle_limit)) {
@@ -355,8 +355,8 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
    // --- TVC PID Control ---
    if (!tvc_in_limp_mode) {
      unsigned long current_tvc_micros = micros();
-     float dt_tvc = (tvc_prev_time_micros == 0) ? TVC_TIME_STEP_TARGET : static_cast<float>(current_tvc_micros - tvc_prev_time_micros) * 1e-6f;
-     if (dt_tvc <= 0.00001f) { dt_tvc = TVC_TIME_STEP_TARGET; }
+     float dt_tvc = (tvc_prev_time_micros == 0) ? tvc_time_step_target : static_cast<float>(current_tvc_micros - tvc_prev_time_micros) * 1e-6f;
+     if (dt_tvc <= 0.00001f) { dt_tvc = tvc_time_step_target; }
      tvc_prev_time_micros = current_tvc_micros;
 
 
@@ -418,25 +418,25 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
    float yawRate = imu.gyrZ();
    float targetYawRate = 0.0f;
    unsigned long current_rw_micros = micros();
-   float dt_rw = (prevTime_rw_micros == 0) ? TVC_TIME_STEP_TARGET : static_cast<float>(current_rw_micros - prevTime_rw_micros) * 1e-6f;
-   if (dt_rw <= 0.00001f) { dt_rw = TVC_TIME_STEP_TARGET; }
+   float dt_rw = (rw_prev_time_micros  == 0) ? tvc_time_step_target : static_cast<float>(current_rw_micros - rw_prev_time_micros ) * 1e-6f;
+   if (dt_rw <= 0.00001f) { dt_rw = tvc_time_step_target; }
 
 
    // — 2) Reaction-wheel linear function —
    float u = (yawRate * moment_i_rocket) / (moment_i_wheel);
    int pulse = constrain(1500 - int(u), 1000, 2000);
-   ledcWrite(escPin, usToDuty(pulse));
+   ledcWrite(reaction_wheel_pin, usToDuty(pulse));
 
 
  } else if (tvc_in_limp_mode) {
    // If TVC is in limp mode, set reaction wheel to neutral for safety
-   ledcWrite(escPin, usToDuty(1500));
+   ledcWrite(reaction_wheel_pin, usToDuty(1500));
    // Serial.println("Reaction Wheel Neutral due to TVC Limp Mode.");
  }
 
 //  fire the 2nd motor
- if ((millis() - last_motor_time >= trigger_time) && !triggered) {
-   triggered = true;
+ if ((millis() - last_motor_time >= trigger_time) && !legs_triggered) {
+   legs_triggered = true;
    triggerMotor();
    last_motor_time = loop_start_micros;
    // fire leg actuators
@@ -448,7 +448,7 @@ if ( (fifoStatus == ICM_20948_Stat_Ok     ||
 
  // --- Maintain loop rate ---
 //  long loop_duration_micros = micros() - loop_start_micros;
-//  long delay_needed_micros = static_cast<long>(TVC_TIME_STEP_TARGET * 1e6f) - loop_duration_micros;
+//  long delay_needed_micros = static_cast<long>(tvc_time_step_target * 1e6f) - loop_duration_micros;
 //  if (delay_needed_micros > 0) {
 //    delayMicroseconds(delay_needed_micros);
 //  }
